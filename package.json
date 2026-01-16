@@ -1,6 +1,6 @@
 {
   "name": "browser-chess-pure",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A pure client-side chess game implementation that runs entirely in the browser. All computation happens on the client side, making it perfect for static hosting on GitHub Pages.",
   "main": "playwright.config.js",
   "directories": {
