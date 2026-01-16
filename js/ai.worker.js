@@ -29,9 +29,29 @@ self.onmessage = async function (event) {
   }
 
   try {
+    // Validate incoming state
+    if (!state) {
+      throw new Error('Worker received null/undefined state');
+    }
+    if (!state.board) {
+      throw new Error('Worker received state without board property');
+    }
+    if (!Array.isArray(state.board) && typeof state.board !== 'object') {
+      throw new Error(`Worker received invalid board type: ${typeof state.board}`);
+    }
+
     // Create a minimal state object compatible with AI.findBestMove
+    // Ensure board is an array (could be object from postMessage)
+    const boardArray = Array.isArray(state.board)
+      ? state.board
+      : Object.values(state.board);
+
+    if (boardArray.length !== 64) {
+      throw new Error(`Worker received board with ${boardArray.length} elements, expected 64`);
+    }
+
     const searchState = {
-      board: state.board,
+      board: boardArray,
       activeColor: state.activeColor,
       castlingRights: state.castlingRights,
       enPassantTarget: state.enPassantTarget,
@@ -49,7 +69,11 @@ self.onmessage = async function (event) {
     // Send result back to main thread
     self.postMessage({ type: "result", move: move });
   } catch (error) {
-    self.postMessage({ type: "error", message: error.message || "AI search failed" });
+    // Include stack trace for debugging
+    const errorMessage = error.stack
+      ? `${error.message}\n${error.stack}`
+      : (error.message || "AI search failed");
+    self.postMessage({ type: "error", message: errorMessage });
   }
 };
 

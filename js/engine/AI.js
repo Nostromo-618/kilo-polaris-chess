@@ -46,13 +46,29 @@ const PIECE_VALUES = {
  */
 class SearchState {
   constructor(baseState) {
+    // Validate incoming board data
+    if (!baseState || !baseState.board) {
+      throw new Error('SearchState: baseState.board is undefined');
+    }
+
+    // Ensure board is an array (could be object from JSON serialization)
+    const boardArray = Array.isArray(baseState.board)
+      ? baseState.board
+      : Object.values(baseState.board);
+
+    if (boardArray.length !== 64) {
+      throw new Error(`SearchState: board has ${boardArray.length} elements, expected 64`);
+    }
+
     // Minimal mutable copy suitable for search.
-    this.board = cloneBoard(baseState.board);
-    this.activeColor = baseState.activeColor;
-    this.castlingRights = JSON.parse(JSON.stringify(baseState.castlingRights));
-    this.enPassantTarget = baseState.enPassantTarget;
-    this.halfmoveClock = baseState.halfmoveClock;
-    this.fullmoveNumber = baseState.fullmoveNumber;
+    this.board = boardArray.slice();
+    this.activeColor = baseState.activeColor || 'white';
+    this.castlingRights = baseState.castlingRights
+      ? JSON.parse(JSON.stringify(baseState.castlingRights))
+      : { white: { kingSide: true, queenSide: true }, black: { kingSide: true, queenSide: true } };
+    this.enPassantTarget = baseState.enPassantTarget || null;
+    this.halfmoveClock = baseState.halfmoveClock || 0;
+    this.fullmoveNumber = baseState.fullmoveNumber || 1;
 
     // Mobility callback used by Evaluator.
     this.generateLegalMoveCount = (color) =>
@@ -316,11 +332,14 @@ export class AI {
    * Store a killer move at the given depth
    */
   storeKillerMove(move, depth) {
-    if (depth >= this.killerMoves.length) return;
+    // Guard against negative depth or out-of-bounds access
+    if (depth < 0 || depth >= this.killerMoves.length) return;
     // Don't store captures as killers (they're already ordered first)
     if (move.captured) return;
 
     const slot = this.killerMoves[depth];
+    // Defensive: ensure slot exists
+    if (!slot) return;
     // Don't store duplicate
     if (slot[0] && slot[0].from === move.from && slot[0].to === move.to) return;
     // Shift and store
@@ -332,10 +351,13 @@ export class AI {
    * Check if a move matches a killer move at the given depth
    */
   isKillerMove(move, depth) {
-    if (depth >= this.killerMoves.length) return false;
+    // Guard against negative depth or out-of-bounds access
+    if (depth < 0 || depth >= this.killerMoves.length) return false;
     const slot = this.killerMoves[depth];
+    // Defensive: ensure slot exists
+    if (!slot) return false;
     return (slot[0] && slot[0].from === move.from && slot[0].to === move.to) ||
-           (slot[1] && slot[1].from === move.from && slot[1].to === move.to);
+      (slot[1] && slot[1].from === move.from && slot[1].to === move.to);
   }
 
   /**
@@ -344,7 +366,7 @@ export class AI {
   hashPosition(state) {
     // Simple string-based hash (not Zobrist, but functional)
     return state.board.join(',') + '|' + state.activeColor + '|' +
-           (state.enPassantTarget || '-');
+      (state.enPassantTarget || '-');
   }
 
   /**
@@ -458,6 +480,11 @@ export class AI {
       return bScore - aScore;
     });
 
+    // Defensive check - should not happen if legalMoves was validated
+    if (ordered.length === 0) {
+      return null;
+    }
+
     let bestMove = ordered[0];
     let bestScore = isMaximizing ? -Infinity : Infinity;
     let alpha = -Infinity;
@@ -558,7 +585,9 @@ export class AI {
 
     const legalMoves = generateLegalMoves(state);
 
-    if (depth === 0 || legalMoves.length === 0) {
+    // Termination: depth exhausted or no moves (checkmate/stalemate)
+    // Use <= 0 because LMR and null move pruning can push depth negative
+    if (depth <= 0 || legalMoves.length === 0) {
       let baseScore = evaluate(state, rootColor);
 
       // Checkmate / stalemate approximation
@@ -645,6 +674,11 @@ export class AI {
 
       return bScore - aScore;
     });
+
+    // Defensive check - should have been caught in depth=0 check above
+    if (ordered.length === 0) {
+      return isMaximizing ? -Infinity : Infinity;
+    }
 
     let bestMove = ordered[0];
 

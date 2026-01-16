@@ -8,6 +8,10 @@
   },
   "scripts": {
     "test": "playwright test",
+    "test:quick": "playwright test --grep-invert 'Full Game Tests'",
+    "test:full-game": "playwright test --grep 'Full Game Tests'",
+    "test:full-game:headed": "playwright test --grep 'Full Game Tests' --headed",
+    "test:all": "playwright test",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed"
   },
