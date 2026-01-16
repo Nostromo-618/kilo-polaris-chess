@@ -9,9 +9,64 @@ import { generateLegalMoves } from "./engine/Rules.js";
  * This module:
  * - Configures initial side (white/black/random).
  * - Delegates rule validation and move generation to GameState.
- * - Delegates AI move search to AI.
+ * - Delegates AI move search to AI (via Web Worker for non-blocking UI).
  * - Exposes high-level methods used by the frontend.
  */
+
+// Shared Web Worker instance for AI computation
+let aiWorker = null;
+let workerReady = false;
+let pendingResolve = null;
+let pendingReject = null;
+
+/**
+ * Initialize the AI Web Worker
+ */
+function initWorker() {
+  if (aiWorker) return;
+
+  try {
+    // Create worker with module support
+    aiWorker = new Worker(new URL("./ai.worker.js", import.meta.url), { type: "module" });
+
+    aiWorker.onmessage = (event) => {
+      const { type, move, message } = event.data;
+
+      if (type === "ready") {
+        workerReady = true;
+        return;
+      }
+
+      if (type === "result") {
+        if (pendingResolve) {
+          pendingResolve(move);
+          pendingResolve = null;
+          pendingReject = null;
+        }
+      } else if (type === "error") {
+        console.error("AI Worker error:", message);
+        if (pendingReject) {
+          pendingReject(new Error(message));
+          pendingResolve = null;
+          pendingReject = null;
+        }
+      }
+    };
+
+    aiWorker.onerror = (error) => {
+      console.error("AI Worker failed:", error);
+      // Fall back to main thread AI
+      aiWorker = null;
+      workerReady = false;
+    };
+  } catch (e) {
+    console.warn("Web Worker not supported, using main thread AI:", e);
+    aiWorker = null;
+  }
+}
+
+// Initialize worker on module load
+initWorker();
 
 export class Game {
   /**
@@ -21,6 +76,7 @@ export class Game {
    * @param {(snapshot: import("./engine/GameState.js").GameSnapshot) => void} options.onUpdate
    */
   constructor({ playerColor, difficulty, onUpdate }) {
+    // Fallback AI for when worker is not available
     this.ai = new AI();
     this.onUpdate = onUpdate || (() => { });
 
@@ -179,16 +235,67 @@ export class Game {
 
   /**
    * Ask AI to compute best move given current state and difficulty.
-   * Uses async to avoid blocking UI; actual search is synchronous within.
+   * Uses Web Worker for non-blocking computation when available.
    *
+   * @param {number} [timeout=10000] - Maximum time for AI search in ms
    * @returns {Promise<import("./engine/Move.js").Move|null>}
    */
-  async computeAIMove() {
+  async computeAIMove(timeout = 10000) {
     if (this.isGameOver()) return null;
     const aiColor = this.getCurrentTurn();
+
+    // Try to use Web Worker for non-blocking computation
+    if (aiWorker && workerReady) {
+      return new Promise((resolve, reject) => {
+        // Store resolve/reject for worker callback
+        pendingResolve = resolve;
+        pendingReject = reject;
+
+        // Set timeout to fall back to main thread if worker hangs
+        const timeoutId = setTimeout(() => {
+          if (pendingResolve) {
+            console.warn("AI Worker timeout, falling back to main thread");
+            pendingResolve = null;
+            pendingReject = null;
+            // Fall back to main thread AI
+            this.ai.findBestMove(this.state, {
+              level: this.difficulty,
+              forColor: aiColor,
+              timeout: timeout,
+            }).then(resolve).catch(reject);
+          }
+        }, timeout + 2000); // Give worker extra time before fallback
+
+        // Clear timeout when worker responds
+        const originalResolve = pendingResolve;
+        pendingResolve = (move) => {
+          clearTimeout(timeoutId);
+          originalResolve(move);
+        };
+
+        // Send search request to worker
+        aiWorker.postMessage({
+          type: "search",
+          state: {
+            board: this.state.board,
+            activeColor: this.state.activeColor,
+            castlingRights: this.state.castlingRights,
+            enPassantTarget: this.state.enPassantTarget,
+            halfmoveClock: this.state.halfmoveClock,
+            fullmoveNumber: this.state.fullmoveNumber,
+          },
+          level: this.difficulty,
+          forColor: aiColor,
+          timeout: timeout,
+        });
+      });
+    }
+
+    // Fallback: use main thread AI
     return this.ai.findBestMove(this.state, {
       level: this.difficulty,
       forColor: aiColor,
+      timeout: timeout,
     });
   }
 

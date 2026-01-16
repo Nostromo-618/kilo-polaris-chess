@@ -7,15 +7,21 @@
  *   - Legal move generation from Rules.js
  *   - Static evaluation from Evaluator.js
  *   - Minimax with alpha-beta pruning
- *   - Simple move ordering and quiescence-like capture extensions
+ *   - MVV-LVA move ordering (Most Valuable Victim - Least Valuable Attacker)
+ *   - Killer move heuristic for better move ordering
+ *   - History heuristic for quiet move ordering
+ *   - Transposition table to avoid redundant evaluations
+ *   - Null move pruning for faster search
+ *   - Late move reductions (LMR) for efficient deep search
+ *   - Quiescence search for tactical accuracy
  *   - Slight randomness at all levels for variety
  *
  * Difficulty mapping (approx; depth is ply, not full moves):
  *   1: depth 1 (material + small noise, some randomness)
  *   2: depth 2
  *   3: depth 3
- *   4: depth 3 + quiescence and better ordering
- *   5: depth 4 + quiescence; may take several seconds in complex positions
+ *   4: depth 4 + quiescence + null move
+ *   5: depth 5 + quiescence + null move + LMR (full optimizations)
  */
 
 import { oppositeColor, cloneBoard } from "./Board.js";
@@ -196,24 +202,177 @@ function indexToAlgebraicFast(index) {
 
 /* === AI core === */
 
+/** Transposition table flag types */
+const TT_EXACT = 0;
+const TT_LOWER = 1; // Beta cutoff (fail-high)
+const TT_UPPER = 2; // Alpha cutoff (fail-low)
+
+/** Maximum transposition table entries */
+const TT_MAX_SIZE = 100000;
+
+/** Null move reduction depth */
+const NULL_MOVE_REDUCTION = 3;
+
+/** Minimum pieces (non-pawns) before disabling null move pruning */
+const ENDGAME_PIECE_THRESHOLD = 7;
+
 export class AI {
   constructor() {
-    // Tunable randomness factor per level
+    // Tunable randomness factor per level (reduced for stronger play)
     this.randomness = {
-      1: 0.4,
-      2: 0.25,
-      3: 0.15,
-      4: 0.08,
-      5: 0.05,
+      1: 0.35,
+      2: 0.20,
+      3: 0.10,
+      4: 0.05,
+      5: 0.03,
     };
 
+    // Increased depths now that we have optimizations
     this.depthForLevel = {
       1: 1,
       2: 2,
       3: 3,
-      4: 3,
-      5: 4,
+      4: 4,
+      5: 5,
     };
+
+    // Killer moves: 2 slots per depth level (up to depth 20)
+    this.killerMoves = [];
+    for (let i = 0; i < 20; i++) {
+      this.killerMoves.push([null, null]);
+    }
+
+    // History heuristic table: [fromSquare][toSquare] -> score
+    // Tracks which quiet moves cause cutoffs
+    this.historyTable = [];
+    for (let i = 0; i < 64; i++) {
+      this.historyTable.push(new Array(64).fill(0));
+    }
+
+    // Transposition table: cleared at start of each search
+    this.transpositionTable = new Map();
+  }
+
+  /**
+   * Clear search-specific data before a new search
+   */
+  clearSearchData() {
+    // Clear killer moves
+    for (let i = 0; i < this.killerMoves.length; i++) {
+      this.killerMoves[i][0] = null;
+      this.killerMoves[i][1] = null;
+    }
+    // Decay history table (halve all values) instead of clearing
+    for (let i = 0; i < 64; i++) {
+      for (let j = 0; j < 64; j++) {
+        this.historyTable[i][j] = Math.floor(this.historyTable[i][j] / 2);
+      }
+    }
+    // Clear transposition table if it's getting too large
+    if (this.transpositionTable.size > TT_MAX_SIZE) {
+      this.transpositionTable.clear();
+    }
+  }
+
+  /**
+   * Update history table on beta cutoff
+   */
+  updateHistory(move, depth) {
+    if (move.captured) return; // Only for quiet moves
+    const fromIdx = algebraicToIndexFast(move.from);
+    const toIdx = algebraicToIndexFast(move.to);
+    // Bonus increases with depth squared (deeper cutoffs more valuable)
+    this.historyTable[fromIdx][toIdx] += depth * depth;
+    // Cap to prevent overflow
+    if (this.historyTable[fromIdx][toIdx] > 10000) {
+      this.historyTable[fromIdx][toIdx] = 10000;
+    }
+  }
+
+  /**
+   * Get history score for a move
+   */
+  getHistoryScore(move) {
+    const fromIdx = algebraicToIndexFast(move.from);
+    const toIdx = algebraicToIndexFast(move.to);
+    return this.historyTable[fromIdx][toIdx];
+  }
+
+  /**
+   * Count non-pawn pieces on the board (for endgame detection)
+   */
+  countPieces(board) {
+    let count = 0;
+    for (let i = 0; i < 64; i++) {
+      const piece = board[i];
+      if (piece && piece[1] !== 'P') {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
+   * Store a killer move at the given depth
+   */
+  storeKillerMove(move, depth) {
+    if (depth >= this.killerMoves.length) return;
+    // Don't store captures as killers (they're already ordered first)
+    if (move.captured) return;
+
+    const slot = this.killerMoves[depth];
+    // Don't store duplicate
+    if (slot[0] && slot[0].from === move.from && slot[0].to === move.to) return;
+    // Shift and store
+    slot[1] = slot[0];
+    slot[0] = { from: move.from, to: move.to };
+  }
+
+  /**
+   * Check if a move matches a killer move at the given depth
+   */
+  isKillerMove(move, depth) {
+    if (depth >= this.killerMoves.length) return false;
+    const slot = this.killerMoves[depth];
+    return (slot[0] && slot[0].from === move.from && slot[0].to === move.to) ||
+           (slot[1] && slot[1].from === move.from && slot[1].to === move.to);
+  }
+
+  /**
+   * Generate a hash key for the transposition table
+   */
+  hashPosition(state) {
+    // Simple string-based hash (not Zobrist, but functional)
+    return state.board.join(',') + '|' + state.activeColor + '|' +
+           (state.enPassantTarget || '-');
+  }
+
+  /**
+   * Probe the transposition table
+   */
+  probeTable(key, depth, alpha, beta) {
+    const entry = this.transpositionTable.get(key);
+    if (!entry || entry.depth < depth) return null;
+
+    if (entry.flag === TT_EXACT) {
+      return entry.score;
+    } else if (entry.flag === TT_LOWER && entry.score >= beta) {
+      return entry.score;
+    } else if (entry.flag === TT_UPPER && entry.score <= alpha) {
+      return entry.score;
+    }
+    return null;
+  }
+
+  /**
+   * Store an entry in the transposition table
+   */
+  storeTable(key, depth, score, flag, bestMove) {
+    // Replace if deeper or same depth
+    const existing = this.transpositionTable.get(key);
+    if (!existing || existing.depth <= depth) {
+      this.transpositionTable.set(key, { depth, score, flag, bestMove });
+    }
   }
 
   /**
@@ -272,11 +431,31 @@ export class AI {
   searchRoot(state, legalMoves, depth, color, { level, timeout, startTime }) {
     const isMaximizing = state.activeColor === color;
 
-    // Basic move ordering: captures first.
+    // MVV-LVA move ordering with killer moves and history heuristic
     const ordered = legalMoves.slice().sort((a, b) => {
-      const ac = a.captured ? pieceValueApprox(a.captured) : 0;
-      const bc = b.captured ? pieceValueApprox(b.captured) : 0;
-      return bc - ac;
+      let aScore = 0;
+      let bScore = 0;
+
+      // MVV-LVA for captures: victim * 10 - attacker
+      if (a.captured) {
+        aScore = pieceValueApprox(a.captured) * 10 - pieceValueApprox(a.piece) + 10000;
+      } else if (this.isKillerMove(a, depth)) {
+        aScore = 9000; // Killer move bonus (below captures)
+      } else {
+        aScore = this.getHistoryScore(a); // History heuristic for quiet moves
+      }
+      if (a.promotion) aScore += pieceValueApprox(a.promotion) * 10;
+
+      if (b.captured) {
+        bScore = pieceValueApprox(b.captured) * 10 - pieceValueApprox(b.piece) + 10000;
+      } else if (this.isKillerMove(b, depth)) {
+        bScore = 9000;
+      } else {
+        bScore = this.getHistoryScore(b);
+      }
+      if (b.promotion) bScore += pieceValueApprox(b.promotion) * 10;
+
+      return bScore - aScore;
     });
 
     let bestMove = ordered[0];
@@ -355,13 +534,27 @@ export class AI {
   }
 
   /**
-   * Minimax with alpha-beta and simple quiescence for higher levels.
+   * Minimax with alpha-beta, null move pruning, LMR, and quiescence.
    */
-  minimax(state, depth, alpha, beta, rootColor, isMaximizing, level, timeout, startTime) {
+  minimax(state, depth, alpha, beta, rootColor, isMaximizing, level, timeout, startTime, allowNullMove = true) {
     // Check timeout at the start of each recursive call
     if (timeout && startTime && Date.now() - startTime >= timeout) {
       return null; // Signal timeout
     }
+
+    const originalAlpha = alpha;
+
+    // Transposition table lookup (only at level 3+)
+    const ttKey = level >= 3 ? this.hashPosition(state) : null;
+    if (ttKey) {
+      const ttScore = this.probeTable(ttKey, depth, alpha, beta);
+      if (ttScore !== null) {
+        return ttScore;
+      }
+    }
+
+    // Check if in check (needed for null move and LMR decisions)
+    const inCheck = isInCheck(state);
 
     const legalMoves = generateLegalMoves(state);
 
@@ -370,7 +563,6 @@ export class AI {
 
       // Checkmate / stalemate approximation
       if (legalMoves.length === 0) {
-        const inCheck = isInCheck(state);
         if (inCheck) {
           baseScore =
             state.activeColor === rootColor ? -100000 : 100000;
@@ -382,9 +574,8 @@ export class AI {
       // Quiescence on higher levels
       if (depth <= 0 && level >= 4) {
         const qScore = this.quiescence(state, alpha, beta, rootColor, baseScore, timeout, startTime);
-        // Check if quiescence timed out
         if (qScore === null) {
-          return baseScore; // Return stand-pat score if quiescence timed out
+          return baseScore;
         }
         return qScore;
       }
@@ -392,83 +583,219 @@ export class AI {
       return baseScore;
     }
 
-    // Order: captures/promotions first
+    // === NULL MOVE PRUNING ===
+    // Skip if: in check, low depth, endgame, or already did null move
+    if (allowNullMove && !inCheck && depth >= 3 && level >= 4) {
+      const pieceCount = this.countPieces(state.board);
+      if (pieceCount >= ENDGAME_PIECE_THRESHOLD) {
+        // Make null move (pass turn)
+        const nullState = state.clone();
+        nullState.activeColor = oppositeColor(nullState.activeColor);
+        nullState.enPassantTarget = null; // Clear en passant after null move
+
+        // Search with reduced depth and narrow window
+        const nullScore = this.minimax(
+          nullState,
+          depth - 1 - NULL_MOVE_REDUCTION,
+          isMaximizing ? -beta : alpha,
+          isMaximizing ? -beta + 1 : alpha + 1,
+          rootColor,
+          !isMaximizing,
+          level,
+          timeout,
+          startTime,
+          false // Don't allow consecutive null moves
+        );
+
+        if (nullScore !== null) {
+          // If null move causes beta cutoff, prune
+          if (isMaximizing && nullScore >= beta) {
+            return beta;
+          }
+          if (!isMaximizing && nullScore <= alpha) {
+            return alpha;
+          }
+        }
+      }
+    }
+
+    // MVV-LVA move ordering with killer moves and history heuristic
     const ordered = legalMoves.slice().sort((a, b) => {
-      const aScore =
-        (a.captured ? pieceValueApprox(a.captured) : 0) +
-        (a.promotion ? pieceValueApprox(a.promotion) : 0);
-      const bScore =
-        (b.captured ? pieceValueApprox(b.captured) : 0) +
-        (b.promotion ? pieceValueApprox(b.promotion) : 0);
+      let aScore = 0;
+      let bScore = 0;
+
+      // MVV-LVA for captures (highest priority)
+      if (a.captured) {
+        aScore = pieceValueApprox(a.captured) * 10 - pieceValueApprox(a.piece) + 10000;
+      } else if (this.isKillerMove(a, depth)) {
+        aScore = 9000; // Killer move bonus
+      } else {
+        aScore = this.getHistoryScore(a); // History heuristic
+      }
+      if (a.promotion) aScore += pieceValueApprox(a.promotion) * 10;
+
+      if (b.captured) {
+        bScore = pieceValueApprox(b.captured) * 10 - pieceValueApprox(b.piece) + 10000;
+      } else if (this.isKillerMove(b, depth)) {
+        bScore = 9000;
+      } else {
+        bScore = this.getHistoryScore(b);
+      }
+      if (b.promotion) bScore += pieceValueApprox(b.promotion) * 10;
+
       return bScore - aScore;
     });
+
+    let bestMove = ordered[0];
 
     if (isMaximizing) {
       let value = -Infinity;
       for (let i = 0; i < ordered.length; i++) {
-        // Check timeout periodically (every 10 moves to avoid overhead)
+        // Check timeout periodically
         if (timeout && startTime && i % 10 === 0 && Date.now() - startTime >= timeout) {
-          return null; // Signal timeout
+          return null;
         }
 
         const move = ordered[i];
         const next = state.clone();
         applyMoveSearch(next, move, state.activeColor);
-        const child = this.minimax(
+
+        // === LATE MOVE REDUCTIONS (LMR) ===
+        // Reduce depth for late quiet moves at higher levels
+        let reduction = 0;
+        if (level >= 5 && depth >= 3 && i >= 4 && !move.captured && !move.promotion && !inCheck) {
+          reduction = 1;
+          if (i >= 8) reduction = 2; // More aggressive reduction for very late moves
+        }
+
+        let child = this.minimax(
           next,
-          depth - 1,
+          depth - 1 - reduction,
           alpha,
           beta,
           rootColor,
           false,
           level,
           timeout,
-          startTime
+          startTime,
+          true
         );
 
-        // Check if child search timed out
-        if (child === null) {
-          return null; // Propagate timeout
+        // Re-search at full depth if reduced search looks promising
+        if (child !== null && reduction > 0 && child > alpha) {
+          child = this.minimax(
+            next,
+            depth - 1,
+            alpha,
+            beta,
+            rootColor,
+            false,
+            level,
+            timeout,
+            startTime,
+            true
+          );
         }
 
-        if (child > value) value = child;
+        if (child === null) {
+          return null;
+        }
+
+        if (child > value) {
+          value = child;
+          bestMove = move;
+        }
         if (value > alpha) alpha = value;
-        if (alpha >= beta) break;
+        if (alpha >= beta) {
+          // Beta cutoff - update killer and history
+          this.storeKillerMove(move, depth);
+          this.updateHistory(move, depth);
+          break;
+        }
       }
+
+      // Store in transposition table
+      if (ttKey) {
+        let flag = TT_EXACT;
+        if (value <= originalAlpha) flag = TT_UPPER;
+        else if (value >= beta) flag = TT_LOWER;
+        this.storeTable(ttKey, depth, value, flag, bestMove);
+      }
+
       return value;
     }
 
+    // Minimizing player
     let value = Infinity;
     for (let i = 0; i < ordered.length; i++) {
-      // Check timeout periodically (every 10 moves to avoid overhead)
       if (timeout && startTime && i % 10 === 0 && Date.now() - startTime >= timeout) {
-        return null; // Signal timeout
+        return null;
       }
 
       const move = ordered[i];
       const next = state.clone();
       applyMoveSearch(next, move, state.activeColor);
-      const child = this.minimax(
+
+      // LMR for minimizing player
+      let reduction = 0;
+      if (level >= 5 && depth >= 3 && i >= 4 && !move.captured && !move.promotion && !inCheck) {
+        reduction = 1;
+        if (i >= 8) reduction = 2;
+      }
+
+      let child = this.minimax(
         next,
-        depth - 1,
+        depth - 1 - reduction,
         alpha,
         beta,
         rootColor,
         true,
         level,
         timeout,
-        startTime
+        startTime,
+        true
       );
 
-      // Check if child search timed out
-      if (child === null) {
-        return null; // Propagate timeout
+      // Re-search at full depth if reduced search looks promising
+      if (child !== null && reduction > 0 && child < beta) {
+        child = this.minimax(
+          next,
+          depth - 1,
+          alpha,
+          beta,
+          rootColor,
+          true,
+          level,
+          timeout,
+          startTime,
+          true
+        );
       }
 
-      if (child < value) value = child;
+      if (child === null) {
+        return null;
+      }
+
+      if (child < value) {
+        value = child;
+        bestMove = move;
+      }
       if (value < beta) beta = value;
-      if (alpha >= beta) break;
+      if (alpha >= beta) {
+        this.storeKillerMove(move, depth);
+        this.updateHistory(move, depth);
+        break;
+      }
     }
+
+    // Store in transposition table
+    if (ttKey) {
+      let flag = TT_EXACT;
+      if (value <= originalAlpha) flag = TT_UPPER;
+      else if (value >= beta) flag = TT_LOWER;
+      this.storeTable(ttKey, depth, value, flag, bestMove);
+    }
+
     return value;
   }
 
@@ -532,6 +859,9 @@ export class AI {
     const startTime = Date.now();
     let bestMove = legalMoves[0]; // Fallback move
     let currentDepth = 1;
+
+    // Clear search-specific data for fresh search
+    this.clearSearchData();
 
     // Start with depth 1 and progressively increase
     while (currentDepth <= maxDepth) {
