@@ -1,0 +1,91 @@
+// @ts-check
+import { test, expect } from '@playwright/test';
+
+/**
+ * Game Initialization Tests
+ * Tests for game startup, settings, and initial board state
+ */
+
+test.describe('Game Initialization', () => {
+    test.beforeEach(async ({ page }) => {
+        await page.goto('/');
+    });
+
+    test('should display the chess board with 64 squares', async ({ page }) => {
+        const squares = page.locator('.chess-square');
+        await expect(squares).toHaveCount(64);
+    });
+
+    test('should show initial status message', async ({ page }) => {
+        const status = page.locator('#status-text');
+        // Status should have some text content initially
+        await expect(status).not.toBeEmpty();
+    });
+
+    test('should have New Game button visible', async ({ page }) => {
+        const newGameBtn = page.locator('#new-game-btn');
+        await expect(newGameBtn).toBeVisible();
+        await expect(newGameBtn).toHaveText('New Game');
+    });
+
+    test('should display default difficulty as Level 3', async ({ page }) => {
+        const difficultySelect = page.locator('#difficulty-select');
+        await expect(difficultySelect).toHaveValue('3');
+    });
+
+    test('should start new game when clicking New Game', async ({ page }) => {
+        await page.click('#new-game-btn');
+
+        // Status should change from initial message
+        const status = page.locator('#status-text');
+        await expect(status).not.toContainText('Initialize a new game');
+
+        // Pieces should be rendered on the board
+        const pieces = page.locator('.chess-piece');
+        const piecesWithContent = pieces.filter({ hasText: /[♔♕♖♗♘♙♚♛♜♝♞♟]/ });
+        await expect(piecesWithContent.first()).toBeVisible();
+    });
+
+    test('should render all starting pieces correctly', async ({ page }) => {
+        await page.click('#new-game-btn');
+
+        // Wait for board to be rendered with pieces
+        await page.waitForFunction(() => {
+            const pieces = document.querySelectorAll('.chess-piece');
+            let count = 0;
+            pieces.forEach(p => {
+                if (p.textContent && p.textContent.trim()) count++;
+            });
+            return count === 32; // 32 pieces at game start
+        });
+    });
+
+    test('should allow color choice before starting game', async ({ page }) => {
+        const whiteBtn = page.locator('#color-choice button[data-color="white"]');
+        const blackBtn = page.locator('#color-choice button[data-color="black"]');
+        const randomBtn = page.locator('#color-choice button[data-color="random"]');
+
+        await expect(whiteBtn).toBeVisible();
+        await expect(blackBtn).toBeVisible();
+        await expect(randomBtn).toBeVisible();
+
+        // White should be active by default
+        await expect(whiteBtn).toHaveClass(/active/);
+    });
+
+    test('should switch color choice when clicking Black', async ({ page }) => {
+        const blackBtn = page.locator('#color-choice button[data-color="black"]');
+        await blackBtn.click();
+        await expect(blackBtn).toHaveClass(/active/);
+    });
+
+    test('should allow changing difficulty levels', async ({ page }) => {
+        const difficultySelect = page.locator('#difficulty-select');
+
+        await difficultySelect.selectOption('1');
+        await expect(difficultySelect).toHaveValue('1');
+
+        await difficultySelect.selectOption('5');
+        await expect(difficultySelect).toHaveValue('5');
+    });
+});

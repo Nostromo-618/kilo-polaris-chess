@@ -1,1 +1,10 @@
 .DS_Store
+
+# npm / Node.js
+node_modules/
+package-lock.json
+
+# Playwright
+playwright-report/
+test-results/
+playwright/.cache/
