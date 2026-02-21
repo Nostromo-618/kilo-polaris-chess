@@ -110,6 +110,7 @@ export class BoardView {
 
     // We reuse existing square elements; only update content and classes.
     // For orientation, we treat data-square as fixed coordinate and place pieces based on boardState.
+    console.log("BoardView.render lastMove:", lastMove);
     this.squareEls.forEach((squareEl, square) => {
       const pieceEl = squareEl.querySelector(".chess-piece");
       const code = boardState[square] || null;
@@ -130,9 +131,10 @@ export class BoardView {
       }
 
       if (
-        this.lastMove &&
-        (this.lastMove.from === square || this.lastMove.to === square)
+        lastMove &&
+        (lastMove.from === square || lastMove.to === square)
       ) {
+        console.log("Adding highlight-last-move to square:", square);
         squareEl.classList.add("highlight-last-move");
       }
     });

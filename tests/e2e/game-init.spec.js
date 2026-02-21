@@ -69,14 +69,14 @@ test.describe('Game Initialization', () => {
         await expect(blackBtn).toBeVisible();
         await expect(randomBtn).toBeVisible();
 
-        // White should be active by default
-        await expect(whiteBtn).toHaveClass(/active/);
+        // White should be active by default (vd-is-active in Vanduo v1.1+)
+        await expect(whiteBtn).toHaveClass(/vd-is-active/);
     });
 
     test('should switch color choice when clicking Black', async ({ page }) => {
         const blackBtn = page.locator('#color-choice button[data-color="black"]');
         await blackBtn.click();
-        await expect(blackBtn).toHaveClass(/active/);
+        await expect(blackBtn).toHaveClass(/vd-is-active/);
     });
 
     test('should allow changing difficulty levels', async ({ page }) => {

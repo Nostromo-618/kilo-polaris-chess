@@ -47,7 +47,7 @@ export class Controls {
         'button[data-color="white"]'
       );
       if (active) {
-        active.classList.add("active");
+        active.classList.add("vd-is-active");
       }
     }
 
@@ -68,10 +68,10 @@ export class Controls {
 
     this.selectedColor = color;
 
-    // Update active styles
+    // Update active styles (Vanduo v1.1+ uses vd-is-active class)
     const buttons = this.colorChoiceContainer.querySelectorAll("button");
-    buttons.forEach((btn) => btn.classList.remove("active"));
-    target.classList.add("active");
+    buttons.forEach((btn) => btn.classList.remove("vd-is-active"));
+    target.classList.add("vd-is-active");
   }
 
   /**

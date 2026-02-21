@@ -20,21 +20,33 @@ export class GameEndModal {
   }
 
   init() {
-    // Create modal structure
+    // Create modal structure using Vanduo v1.1+ modal component classes (vd- prefix)
     this.modal = document.createElement('div');
-    this.modal.className = 'game-end-modal';
+    this.modal.className = 'vd-modal game-end-modal';
+    this.modal.id = 'game-end-modal';
     this.modal.setAttribute('role', 'dialog');
     this.modal.setAttribute('aria-labelledby', 'game-end-title');
     this.modal.setAttribute('aria-modal', 'true');
     this.modal.innerHTML = `
-      <div class="game-end-modal-backdrop"></div>
-      <div class="game-end-modal-content">
-        <div class="game-end-icon" id="game-end-icon"></div>
-        <h2 id="game-end-title" class="game-end-title"></h2>
-        <p class="game-end-message" id="game-end-message"></p>
-        <div class="game-end-actions">
-          <button class="btn btn-primary" id="game-end-new-game-btn">New Game</button>
-          <button class="btn" id="game-end-close-btn">Close</button>
+      <div class="vd-modal-backdrop"></div>
+      <div class="vd-modal-dialog">
+        <div class="vd-modal-content game-end-modal-content">
+          <div class="vd-modal-header">
+            <h3 id="game-end-title" class="vd-modal-title game-end-title"></h3>
+            <button type="button" class="vd-modal-close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="vd-modal-body">
+            <div class="game-end-icon" id="game-end-icon"></div>
+            <p class="game-end-message" id="game-end-message"></p>
+          </div>
+          <div class="vd-modal-footer game-end-actions">
+            <button class="vd-btn vd-btn-primary" id="game-end-new-game-btn">
+              <i class="ph ph-play vd-mr-2"></i> New Game
+            </button>
+            <button class="vd-btn vd-btn-secondary" id="game-end-close-btn" data-dismiss="modal">Close</button>
+          </div>
         </div>
       </div>
     `;
@@ -44,20 +56,21 @@ export class GameEndModal {
     // Bind event handlers
     const newGameBtn = this.modal.querySelector('#game-end-new-game-btn');
     const closeBtn = this.modal.querySelector('#game-end-close-btn');
-    const backdrop = this.modal.querySelector('.game-end-modal-backdrop');
+    const modalCloseBtn = this.modal.querySelector('.vd-modal-close');
+    const backdrop = this.modal.querySelector('.vd-modal-backdrop');
 
     newGameBtn.addEventListener('click', () => {
       this.hide();
       this.onNewGame();
     });
 
-    closeBtn.addEventListener('click', () => {
+    const handleClose = () => {
       this.hide();
-    });
+    };
 
-    backdrop.addEventListener('click', () => {
-      this.hide();
-    });
+    closeBtn.addEventListener('click', handleClose);
+    modalCloseBtn.addEventListener('click', handleClose);
+    backdrop.addEventListener('click', handleClose);
 
     // Close on Escape key
     this.handleEscape = (e) => {
@@ -157,4 +170,3 @@ export class GameEndModal {
     document.body.style.overflow = '';
   }
 }
-

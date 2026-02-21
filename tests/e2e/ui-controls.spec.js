@@ -12,49 +12,41 @@ test.describe('UI Controls', () => {
     });
 
     test.describe('Theme Switching', () => {
-        test('should have theme selector with three options', async ({ page }) => {
-            const themeSelect = page.locator('#theme-select');
-            await expect(themeSelect).toBeVisible();
-
-            const options = themeSelect.locator('option');
-            await expect(options).toHaveCount(3);
+        test('should have theme customizer button visible', async ({ page }) => {
+            const themeBtn = page.locator('[data-theme-customizer-trigger]');
+            await expect(themeBtn).toBeVisible();
         });
 
-        test('should default to System theme', async ({ page }) => {
-            const themeSelect = page.locator('#theme-select');
-            await expect(themeSelect).toHaveValue('system');
+        test('should open theme customizer when button clicked', async ({ page }) => {
+            await page.click('[data-theme-customizer-trigger]');
+            // The Vanduo theme customizer uses a dynamic panel
+            const panel = page.locator('.vd-theme-customizer-panel');
+            await expect(panel).toHaveClass(/is-open/);
         });
 
-        test('should switch to Light theme', async ({ page }) => {
-            const themeSelect = page.locator('#theme-select');
-            await themeSelect.selectOption('light');
-            await expect(themeSelect).toHaveValue('light');
-
-            // Verify theme is applied via CSS class
+        test('should switch to Light theme via customizer', async ({ page }) => {
+            await page.click('[data-theme-customizer-trigger]');
+            await page.click('button:has-text("Light")');
+            
             const html = page.locator('html');
-            await expect(html).toHaveClass(/theme-light/);
+            await expect(html).toHaveAttribute('data-theme', 'light');
         });
 
-        test('should switch to Dark theme', async ({ page }) => {
-            const themeSelect = page.locator('#theme-select');
-            await themeSelect.selectOption('dark');
-            await expect(themeSelect).toHaveValue('dark');
-
-            // Verify theme is applied via CSS class
+        test('should switch to Dark theme via customizer', async ({ page }) => {
+            await page.click('[data-theme-customizer-trigger]');
+            await page.click('button:has-text("Dark")');
+            
             const html = page.locator('html');
-            await expect(html).toHaveClass(/theme-dark/);
+            await expect(html).toHaveAttribute('data-theme', 'dark');
         });
 
-        test('should persist theme preference', async ({ page }) => {
-            // Set dark theme
-            await page.locator('#theme-select').selectOption('dark');
-
-            // Reload page
-            await page.reload();
-
-            // Theme should still be dark
-            const themeSelect = page.locator('#theme-select');
-            await expect(themeSelect).toHaveValue('dark');
+        test('should switch to System theme via customizer', async ({ page }) => {
+            await page.click('[data-theme-customizer-trigger]');
+            await page.click('button:has-text("System")');
+            
+            // Should not have data-theme attribute when system is selected
+            const html = page.locator('html');
+            await expect(html).not.toHaveAttribute('data-theme');
         });
     });
 

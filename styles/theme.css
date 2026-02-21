@@ -1,120 +1,267 @@
+/**
+ * Theme variables for Kilo Polaris Chess
+ * Properly mapped to Vanduo Framework's color system
+ * 
+ * Vanduo uses Open Color palette: https://yeun.github.io/open-color/
+ * Primary: Cyan (--primary-0 through --primary-9)
+ * Gray: Neutral scale (--gray-0 through --gray-9)
+ */
+
+/* ============================================
+/* ============================================
+   VANDUO INTEGRATION - CSS VARIABLE MAPPING
+   ============================================ */
+
+/* Use Vanduo's CSS variables directly */
 :root {
-  --font-family-sans: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-    -system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-
-  /* Light theme defaults */
-  --color-bg: #f5f5f7;
-  --color-bg-elevated: #ffffff;
-  --color-text: #111827;
-  --color-subtle-text: #6b7280;
-  --color-accent: #2563eb;
-  --color-accent-soft: rgba(37, 99, 235, 0.12);
-  --color-border: #e5e7eb;
-
+  /* Chess-specific colors */
   --board-light: #f0d9b5;
   --board-dark: #b58863;
-  --board-highlight: #fbbf24;
+  --board-highlight: var(--yellow-5);
   --board-legal-move: rgba(16, 185, 129, 0.4);
-  --board-last-move: rgba(37, 99, 235, 0.25);
+  --board-last-move: rgba(34, 184, 207, 0.4);
+  /* clearer highlight */
 
-  /* Lock piece colors so they remain black glyphs on the board in all themes.
-     Board background provides contrast; UI theme does not affect piece color. */
+  /* Piece colors */
   --piece-white: #111827;
   --piece-black: #111827;
 
-  --btn-bg: #e5e7eb;
-  --btn-bg-hover: #d1d5db;
-  --btn-bg-primary: #2563eb;
-  --btn-bg-primary-hover: #1d4ed8;
-  --btn-text: #111827;
-  --btn-text-primary: #ffffff;
+  /* Custom chest app variables */
+  --color-accent: var(--primary-6);
+  --color-accent-soft: var(--primary-1);
 
-  --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.12);
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --transition-fast: 0.18s ease-out;
+  /* Transition and effects */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* smoother */
+  --shadow-soft: var(--shadow-xl);
 
-  color-scheme: light;
+  /* Glassmorphism Variables */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-blur: 24px;
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #020817;
-    --color-bg-elevated: #020817;
-    --color-text: #e5e7eb;
-    --color-subtle-text: #9ca3af;
-    --color-accent: #60a5fa;
-    --color-accent-soft: rgba(96, 165, 250, 0.14);
-    --color-border: #111827;
+[data-theme="dark"] {
+  --glass-bg: rgba(30, 30, 45, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  /* subtle border */
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 
-    /* Board colors intentionally NOT overridden:
-       keep light-theme board palette constant across modes. */
+  --board-light: #71717a;
+  /* Zinc-500: Lighter than before */
+  --board-dark: #3f3f46;
+  /* Zinc-700: Lighter than before */
+  --piece-white: #f4f4f5;
+  /* Zinc-100 */
+  --piece-black: #18181b;
+  /* Zinc-900 */
+}
 
-    /* Do not override piece colors: keep them constant (black glyphs). */
+/* ============================================
+   GLASSMORPHISM UTILITY
+   ============================================ */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
 
-    --btn-bg: #111827;
-    --btn-bg-hover: #1f2937;
-    --btn-bg-primary: #2563eb;
-    --btn-bg-primary-hover: #1d4ed8;
-    --btn-text: #e5e7eb;
-    --btn-text-primary: #ffffff;
+/* ============================================
+   CHESS BOARD STYLES
+   ============================================ */
 
-    color-scheme: dark;
+/* Board container uses Vanduo's card styling */
+#board-container {
+  background: var(--board-dark);
+  border-radius: var(--radius-lg);
+  /* larger radius */
+  overflow: hidden;
+  box-shadow: var(--shadow-2xl);
+  /* deeper shadow */
+  border: 4px solid var(--gray-8);
+  /* premium border */
+}
+
+/* Chess squares */
+.chess-square {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.chess-square.light {
+  background-color: var(--board-light);
+}
+
+.chess-square.dark {
+  background-color: var(--board-dark);
+}
+
+/* Selected square highlight */
+.chess-square.highlight-selected {
+  background-color: var(--board-highlight) !important;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Legal move indicators */
+.chess-square.highlight-legal::after {
+  content: '';
+  width: 25%;
+  height: 25%;
+  background-color: var(--board-legal-move);
+  border-radius: 50%;
+  position: absolute;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Last move highlight */
+.chess-square.highlight-last-move {
+  background-color: var(--board-last-move) !important;
+}
+
+/* Chess pieces */
+.chess-piece {
+  font-size: 2.8rem;
+  /* slightly larger */
+  user-select: none;
+  cursor: pointer;
+  z-index: 1;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+  /* pop pieces */
+}
+
+/* ============================================
+   APP-SPECIFIC STYLES
+   ============================================ */
+
+/* Header uses Vanduo's navbar styling but with custom tweaks */
+.app-header {
+  /* Padding is now minimal as container handles horizontal spacing */
+  padding: var(--spacing-13, 13px) 0;
+  /* background handled by glass-panel */
+  border-bottom: 1px solid var(--glass-border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  margin-bottom: var(--spacing-21);
+}
+
+.app-title {
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  /* extra bold */
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8, 8px);
+  letter-spacing: -0.02em;
+}
+
+/* Main content area */
+.app-main {
+  padding: var(--spacing-21, 21px);
+}
+
+/* Side panel card */
+.side-panel {
+  height: fit-content;
+  overflow: hidden;
+  /* for card curves */
+}
+
+/* Gradient Text Utility */
+.text-gradient {
+  background: linear-gradient(135deg, var(--primary-6), var(--primary-4));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+/* Status text */
+.status-text {
+  font-size: var(--font-size-lg);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.status-sub {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin-top: var(--spacing-5, 5px);
+}
+
+/* Move history list */
+.move-history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.move-history-list li {
+  padding: var(--spacing-5, 5px) var(--spacing-8, 8px);
+  border-bottom: 1px solid var(--border-color);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  transition: background var(--transition-fast);
+}
+
+.move-history-list li:hover {
+  background: var(--bg-secondary);
+}
+
+.move-history-list li:last-child {
+  border-bottom: none;
+}
+
+/* Busy state animation */
+.busy {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.7;
+    transform: scale(0.98);
   }
 }
 
-/* Explicit theme classes for overrides */
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
 
-html.theme-light {
-  --color-bg: #f5f5f7;
-  --color-bg-elevated: #ffffff;
-  --color-text: #111827;
-  --color-subtle-text: #6b7280;
-  --color-accent: #2563eb;
-  --color-accent-soft: rgba(37, 99, 235, 0.12);
-  --color-border: #e5e7eb;
+@media (max-width: 991px) {
+  .app-main {
+    padding: var(--spacing-13, 13px);
+  }
 
-  --board-light: #f0d9b5;
-  --board-dark: #b58863;
-  --board-highlight: #fbbf24;
-  --board-legal-move: rgba(16, 185, 129, 0.4);
-  --board-last-move: rgba(37, 99, 235, 0.25);
-
-  /* Lock piece glyph colors globally to black for all themes. */
-  --piece-white: #111827;
-  --piece-black: #111827;
-
-  --btn-bg: #e5e7eb;
-  --btn-bg-hover: #d1d5db;
-  --btn-bg-primary: #2563eb;
-  --btn-bg-primary-hover: #1d4ed8;
-  --btn-text: #111827;
-  --btn-text-primary: #ffffff;
-
-  color-scheme: light;
+  .chess-piece {
+    font-size: 2rem;
+  }
 }
 
-html.theme-dark {
-  --color-bg: #020817;
-  --color-bg-elevated: #020817;
-  --color-text: #e5e7eb;
-  --color-subtle-text: #9ca3af;
-  --color-accent: #60a5fa;
-  --color-accent-soft: rgba(96, 165, 250, 0.14);
-  --color-border: #111827;
+@media (max-width: 576px) {
+  .chess-piece {
+    font-size: 1.5rem;
+  }
 
-  /* Board colors intentionally NOT overridden:
-     keep light-theme board palette constant across modes. */
-
-  /* Do not override piece colors here either: inherit constant black glyph color. */
-
-  --btn-bg: #111827;
-  --btn-bg-hover: #1f2937;
-  --btn-bg-primary: #2563eb;
-  --btn-bg-primary-hover: #1d4ed8;
-  --btn-text: #e5e7eb;
-  --btn-text-primary: #ffffff;
-
-  color-scheme: dark;
+  .app-title {
+    font-size: var(--font-size-lg);
+  }
 }
-

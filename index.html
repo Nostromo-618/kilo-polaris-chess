@@ -3,90 +3,107 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>Browser Chess Pure JS</title>
+  <title>Kilo Polaris Chess</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Modern vanilla JS chess vs computer with 5 difficulty levels." />
+
+  <!-- Vanduo Framework CSS (Local) -->
+  <link rel="stylesheet" href="dist/vanduo.min.css" />
+
+  <!-- Phosphor Icons (Local Duotone) -->
+  <link rel="stylesheet" href="dist/icons/phosphor/duotone/style.css" />
+
+  <!-- Custom theme (after Vanduo for overrides) -->
   <link rel="stylesheet" href="styles/theme.css" />
   <link rel="stylesheet" href="styles/layout.css" />
+
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+
+  <!-- Vanduo Framework JS -->
+  <script src="dist/vanduo.min.js"></script>
 </head>
 
 <body>
   <div id="app-root">
-    <header class="app-header">
-      <h1 class="app-title">Kilo Polaris Chess - Browser Version for GitHub Pages</h1>
-      <div class="theme-toggle">
-        <label for="theme-select">Theme:</label>
-        <select id="theme-select" aria-label="Theme selection">
-          <option value="system" selected>System</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
+    <header class="app-header glass-panel">
+      <div class="vd-container-lg vd-d-flex vd-align-items-center vd-justify-content-between">
+        <h1 class="app-title">
+          <i class="ph-duotone ph-chess-piece" style="color: var(--color-primary);"></i>
+          Kilo Polaris Chess
+        </h1>
+        <button class="vd-theme-customizer-trigger" data-theme-customizer-trigger aria-label="Open theme customizer">
+          <i class="ph-duotone ph-paint-roller"></i>
+        </button>
       </div>
     </header>
 
-    <main class="app-main">
-      <section class="board-section" aria-label="Chess board">
-        <div id="board-container"></div>
-      </section>
-
-      <aside class="side-panel" aria-label="Game controls and status">
-        <section class="controls-section">
-          <h2>Game Settings</h2>
-          <div class="control-group">
-            <label>Play as:</label>
-            <div class="btn-group" id="color-choice">
-              <button data-color="white" class="btn btn-sm active">White</button>
-              <button data-color="black" class="btn btn-sm">Black</button>
-              <button data-color="random" class="btn btn-sm">
-                Random
-              </button>
-            </div>
-          </div>
-
-          <div class="control-group">
-            <label for="difficulty-select">Computer strength:</label>
-            <select id="difficulty-select">
-              <option value="1">Level 1 - Very Easy</option>
-              <option value="2">Level 2 - Easy</option>
-              <option value="3" selected>Level 3 - Medium</option>
-              <option value="4">Level 4 - Hard</option>
-              <option value="5">Level 5 - Very Hard</option>
-            </select>
-          </div>
-
-          <div class="control-group">
-            <label for="thinking-time">Thinking Time (s):</label>
-            <input type="number" id="thinking-time" value="10" min="1" max="60" style="width: 60px; padding: 4px;">
-          </div>
-
-          <div class="control-group">
-            <button id="new-game-btn" class="btn btn-primary">
-              New Game
-            </button>
-          </div>
+    <main class="app-main vd-container-lg">
+      <div class="vd-row">
+        <section class="vd-col-12 vd-col-lg-8 board-section" aria-label="Chess board">
+          <div id="board-container" class="vd-card-elevated"></div>
         </section>
 
-        <section class="status-section">
-          <h2>Status</h2>
-          <div id="status-text" class="status-text">
-            Initialize a new game to start.
-          </div>
-          <div id="turn-indicator" class="status-sub"></div>
-          <div id="last-move-indicator" class="status-sub"></div>
-        </section>
+        <aside class="vd-col-12 vd-col-lg-4" aria-label="Game controls and status">
+          <div class="vd-card vd-card-elevated side-panel glass-panel">
+            <section class="vd-card-body controls-section">
+              <h2 class="vd-text-gradient">Game Settings</h2>
 
-        <section class="history-section" aria-label="Move history">
-          <h2>Move History</h2>
-          <ol id="move-history" class="move-history-list"></ol>
-        </section>
-      </aside>
+              <div class="vd-form-group">
+                <label class="vd-form-label">Play as:</label>
+                <div class="vd-btn-group" id="color-choice">
+                  <button data-color="white" class="vd-btn vd-btn-sm vd-is-active">White</button>
+                  <button data-color="black" class="vd-btn vd-btn-sm">Black</button>
+                  <button data-color="random" class="vd-btn vd-btn-sm">Random</button>
+                </div>
+              </div>
+
+              <div class="vd-form-group">
+                <label for="difficulty-select" class="vd-form-label">Computer strength:</label>
+                <select id="difficulty-select" class="vd-input">
+                  <option value="1">Level 1 - Very Easy</option>
+                  <option value="2">Level 2 - Easy</option>
+                  <option value="3" selected>Level 3 - Medium</option>
+                  <option value="4">Level 4 - Hard</option>
+                  <option value="5">Level 5 - Very Hard</option>
+                </select>
+              </div>
+
+              <div class="vd-form-group">
+                <label for="thinking-time" class="vd-form-label">Thinking Time (s):</label>
+                <input type="number" id="thinking-time" class="vd-input" value="10" min="1" max="60" style="width: 80px;">
+              </div>
+
+              <div class="vd-form-group vd-mt-5">
+                <button id="new-game-btn" class="vd-btn vd-btn-primary vd-btn-block vd-shadow-lg">
+                  <i class="ph-duotone ph-play vd-mr-2"></i> New Game
+                </button>
+              </div>
+            </section>
+
+            <section class="vd-card-body status-section">
+              <h2 class="vd-text-gradient">Status</h2>
+              <div id="status-text" class="status-text">
+                Initialize a new game to start.
+              </div>
+              <div id="turn-indicator" class="status-sub"></div>
+              <div id="last-move-indicator" class="status-sub"></div>
+            </section>
+
+            <section class="vd-card-body history-section" aria-label="Move history">
+              <h2 class="vd-text-gradient">Move History</h2>
+              <ol id="move-history" class="move-history-list"></ol>
+            </section>
+          </div>
+        </aside>
+      </div>
     </main>
   </div>
 
   <!-- Game End Modal Container -->
   <div id="game-end-modal-container"></div>
 
+  <!-- Initialize Vanduo Framework (required in v1.1.0+) -->
+  <script>Vanduo.init();</script>
   <script type="module" src="js/main.js"></script>
 </body>
 

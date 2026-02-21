@@ -1,90 +1,19 @@
+/**
+ * Layout styles for Kilo Polaris Chess
+ * Uses Vanduo Framework classes where possible
+ * Chess-specific styles are preserved
+ */
+
+/* ============================================
+   CHESS BOARD - PRESERVED AS IS
+   These are unique to chess and can't use framework classes
+   ============================================ */
+
 /* Ensure chess pieces keep a constant dark glyph color across all themes */
 .chess-piece {
   color: var(--piece-black);
 }
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-}
-
-body {
-  font-family: var(--font-family-sans);
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-}
-
-#app-root {
-  width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-height: 100vh;
-}
-
-.app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.app-title {
-  font-size: 1.4rem;
-  font-weight: 600;
-  margin: 0;
-}
-
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  color: var(--color-subtle-text);
-}
-
-.app-main {
-  flex: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.9fr);
-  gap: 16px;
-  align-items: stretch;
-}
-
-/* Board container: always centered in its section */
-.board-section {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#board-container {
-  width: min(100%, 560px);
-  aspect-ratio: 1 / 1;
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  grid-template-rows: repeat(8, 1fr);
-  background-color: var(--color-border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-soft);
-}
-
-/* Individual squares */
 .chess-square {
   position: relative;
   display: flex;
@@ -129,182 +58,54 @@ body {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
-/* Side panel styling */
-.side-panel {
-  background-color: var(--color-bg-elevated);
-  border-radius: var(--radius-lg);
-  padding: 14px 14px 12px;
-  box-shadow: var(--shadow-soft);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  border: 1px solid var(--color-border);
+/* ============================================
+   BOARD CONTAINER
+   ============================================ */
+
+#board-container {
+  width: min(100%, 560px);
+  aspect-ratio: 1 / 1;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  /* background, border-radius, shadow handled in theme.css now */
 }
 
-.side-panel section h2 {
-  margin: 0 0 6px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--color-subtle-text);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.controls-section,
-.status-section,
-.history-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.control-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 4px;
-  font-size: 0.9rem;
-}
-
-.btn-group {
-  display: inline-flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.btn {
-  border: none;
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 0.82rem;
-  cursor: pointer;
-  background-color: var(--btn-bg);
-  color: var(--btn-text);
-  transition: background-color var(--transition-fast),
-    color var(--transition-fast), transform var(--transition-fast),
-    box-shadow var(--transition-fast);
-}
-
-.btn-sm {
-  padding: 4px 9px;
-  font-size: 0.78rem;
-}
-
-.btn-primary {
-  background-color: var(--btn-bg-primary);
-  color: var(--btn-text-primary);
-  font-weight: 500;
-}
-
-.btn:hover {
-  background-color: var(--btn-bg-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18);
-}
-
-.btn-primary:hover {
-  background-color: var(--btn-bg-primary-hover);
-}
-
-.btn.active {
-  background-color: var(--color-accent);
-  color: var(--btn-text-primary);
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
-}
-
-/* Selects */
-select {
-  padding: 4px 8px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  font-size: 0.82rem;
-  background-color: var(--color-bg-elevated);
-  color: var(--color-text);
-}
-
-/* Status & history */
-.status-text {
-  font-size: 0.9rem;
-  color: var(--color-text);
-}
-
-.status-text.busy {
-  font-style: italic;
-  opacity: 0.8;
-}
-
-.status-sub {
-  font-size: 0.78rem;
-  color: var(--color-subtle-text);
-}
+/* ============================================
+   MOVE HISTORY LIST
+   ============================================ */
 
 .move-history-list {
   list-style: decimal;
   margin: 2px 0 0;
   padding-left: 20px;
-  font-size: 0.78rem;
-  max-height: 180px;
+  font-size: var(--font-size-sm, 0.875rem);
+  max-height: 250px;
   overflow-y: auto;
 }
 
 /* Scrollbar minimal styling */
 .move-history-list::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
+  /* slightly thicker for usability */
 }
+
 .move-history-list::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .move-history-list::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: var(--text-muted);
+  /* visible thumb */
   border-radius: 999px;
+  opacity: 0.5;
 }
 
-/* Responsive layout */
+/* ============================================
+   GAME END MODAL - CUSTOM ANIMATIONS
+   These are preserved as they're unique to the game
+   ============================================ */
 
-@media (max-width: 900px) {
-  .app-main {
-    grid-template-columns: 1fr;
-  }
-
-  .side-panel {
-    order: 2;
-  }
-
-  .board-section {
-    order: 1;
-  }
-
-  #board-container {
-    width: min(100%, 86vw);
-  }
-}
-
-@media (max-width: 540px) {
-  #app-root {
-    padding: 10px;
-    gap: 10px;
-  }
-
-  .app-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .app-title {
-    font-size: 1.25rem;
-  }
-
-  .side-panel {
-    padding: 10px;
-  }
-
-  #board-container {
-    width: min(100%, 94vw);
-  }
-}
-
-/* Game End Modal */
 .game-end-modal {
   position: fixed;
   top: 0;
@@ -368,9 +169,11 @@ select {
     transform: scale(0);
     opacity: 0;
   }
+
   50% {
     transform: scale(1.2);
   }
+
   100% {
     transform: scale(1);
     opacity: 1;
@@ -401,24 +204,72 @@ select {
 .game-end-actions .btn {
   min-width: 120px;
   padding: 10px 20px;
-  font-size: 0.9rem;
 }
 
-/* Modal variants */
+/* Modal variants - using Vanduo's color variables */
 .game-end-modal-victory .game-end-title {
-  color: #10b981;
+  color: var(--color-success);
 }
 
 .game-end-modal-defeat .game-end-title {
-  color: #ef4444;
+  color: var(--color-error);
 }
 
 .game-end-modal-draw .game-end-title {
-  color: var(--color-accent);
+  color: var(--color-primary);
 }
 
-/* Responsive modal */
-@media (max-width: 540px) {
+/* ============================================
+   RESPONSIVE BREAKPOINTS
+   Using Vanduo-style responsive utilities
+   ============================================ */
+
+@media (max-width: 991px) {
+
+  /* Tablet and below - stack board and side panel */
+  .app-main {
+    flex-direction: column;
+  }
+
+  .side-panel {
+    order: 2;
+  }
+
+  .board-section {
+    order: 1;
+  }
+
+  #board-container {
+    width: min(100%, 86vw);
+  }
+}
+
+@media (max-width: 575px) {
+
+  /* Mobile */
+  #app-root {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .app-title {
+    font-size: 1.25rem;
+  }
+
+  .side-panel {
+    padding: 10px;
+  }
+
+  #board-container {
+    width: min(100%, 94vw);
+  }
+
   .game-end-modal-content {
     padding: 24px;
     max-width: 90%;
@@ -448,3 +299,43 @@ select {
   }
 }
 
+/* ============================================
+   VANDUO COMPATIBILITY FIXES
+   Ensure Vanduo classes work well with our custom styles
+   ============================================ */
+
+/* Fix for card-based side panel */
+.side-panel .card {
+  background-color: transparent;
+  box-shadow: none;
+  border: none;
+}
+
+.side-panel .card+.card {
+  margin-top: var(--spacing-5, 8px);
+}
+
+/* Status section styling - using Vanduo variables */
+.status-text {
+  font-size: var(--font-size-base);
+}
+
+.status-text.busy {
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.status-sub {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+/* Side panel section headers */
+.side-panel section h2 {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--spacing-3);
+  color: var(--text-primary);
+}

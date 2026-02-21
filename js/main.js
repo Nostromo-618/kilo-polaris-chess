@@ -1,4 +1,3 @@
-import { ThemeManager } from "./ui/ThemeManager.js";
 import { BoardView } from "./ui/BoardView.js";
 import { Controls } from "./ui/Controls.js";
 import { GameEndModal } from "./ui/GameEndModal.js";
@@ -6,14 +5,13 @@ import { Game } from "./Game.js";
 
 /**
  * Main entry point for client-side chess application
- * 
+ *
  * This version runs entirely in the browser with no server dependencies.
  * All chess engine computation happens client-side.
  */
 
 const dom = {
   boardContainer: document.getElementById("board-container"),
-  themeSelect: document.getElementById("theme-select"),
   colorChoice: document.getElementById("color-choice"),
   difficultySelect: document.getElementById("difficulty-select"),
   newGameBtn: document.getElementById("new-game-btn"),
@@ -24,19 +22,13 @@ const dom = {
   gameEndModalContainer: document.getElementById("game-end-modal-container"),
 };
 
-// Initialize theme system
-const themeManager = new ThemeManager({
-  selectEl: dom.themeSelect,
-  storageKey: "kilo-polaris-chess-theme",
-});
-
 // Initialize board view
 const boardView = new BoardView(dom.boardContainer, {
   onSquareSelected: handleSquareSelected,
 });
 
 // Initialize controls
-const controls = new Controls({
+const controlsView = new Controls({
   colorChoiceContainer: dom.colorChoice,
   difficultySelect: dom.difficultySelect,
   newGameButton: dom.newGameBtn,
@@ -59,8 +51,8 @@ async function initializeGame() {
   // Reset game over tracking
   previousGameOver = false;
 
-  const playerColor = controls.getSelectedColor();
-  const difficulty = controls.getDifficulty();
+  const playerColor = controlsView.getSelectedColor();
+  const difficulty = controlsView.getDifficulty();
 
   try {
     game = new Game({
@@ -231,9 +223,6 @@ function syncBusyState(isBusy) {
 
 // Initialize the application
 async function main() {
-  // Initialize theme
-  themeManager.init();
-
   // Start the game
   dom.statusText.textContent = "Ready. Select settings and click 'New Game' to start.";
 }
