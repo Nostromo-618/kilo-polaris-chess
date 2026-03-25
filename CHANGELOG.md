@@ -2,7 +2,112 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.1.0] - 2026-03-24
+
+### Added
+
+#### Zobrist Hashing (Critical Performance Fix)
+- Replaced string-based transposition table hashing with proper Zobrist hashing
+- Pre-computed random 32-bit integers for pieces (12 types x 64 squares), side to move, castling rights (16 combinations), and en passant file (8 files)
+- Incremental hash updates during move application - O(1) per move instead of O(n) string concatenation
+- Expected 20-40% improvement in search speed due to dramatically reduced GC pressure
+
+#### Board Coordinate Labels
+- File labels (a-h) below the board
+- Rank labels (1-8) on the left side of the board
+- Labels update dynamically based on board perspective (white/black view)
+
+#### Undo / Take-Back Feature
+- "Undo" button in the controls panel
+- Undoes the last two moves (player's move + computer's response)
+- Disabled when no moves have been made, during AI computation, or after game over
+- Full state restoration including board, castling rights, en passant, move history
+
+#### Thinking Time Persistence
+- Thinking time setting now saved to localStorage (`kpc-thinking-time`)
+- Restored on page reload alongside difficulty and theme preferences
+
+#### ESLint Configuration
+- Added `.eslintrc.json` with sensible defaults for browser ES modules
+- Rules: no-unused-vars (warn), no-console (warn), eqeqeq (error), no-var (error), prefer-const (warn)
+
+### Changed
+
+#### Vanduo Framework Updated to v1.3.1
+- Updated `@vanduo-oss/framework` from v1.2.5 to v1.3.1
+- Updated project `dist/` directory with new framework files
+
+#### Move Ordering Refactored (DRY)
+- Extracted shared `orderMoves()` method in `AI.js` class
+- Eliminated duplicated MVV-LVA + killer move + history heuristic sorting logic
+- Previously copy-pasted between `searchRoot()` and `minimax()`
+
+#### SAN Generation Optimized
+- Replaced `toSimpleSAN()` approach that cloned entire `GameState` and called `applyMoveInternalForSAN()`
+- New `detectCheckAfterMove()` method uses lightweight board copy only
+- No longer clones move history, repetition map, castling rights, etc.
+
+#### Controls Refactored
+- `Controls` constructor now accepts `thinkingTimeInput` and `undoButton` elements via dependency injection
+- `getThinkingTime()` no longer uses `document.getElementById()` directly
+- Added `setThinkingTime()`, `setUndoEnabled()` methods
+
+#### CSS Consolidated
+- Merged duplicate styles between `theme.css` and `layout.css`
+- `theme.css` now contains only: CSS variables, dark theme overrides, glass panel utility, disclaimer modal styles, app-level styling
+- `layout.css` now contains all chess-specific styling: squares, pieces, board grid, coordinate labels, move history, game end modal
+- Fixed conflicting `.chess-square.highlight-selected` rules (theme.css vs layout.css)
+- Fixed `.move-history-list` list-style conflict (`none` vs `decimal`)
+
+#### localStorage Save Throttled
+- Game state saves to localStorage now throttled to max once per 500ms
+- Prevents excessive writes during rapid UI updates
+
+#### package.json Cleaned Up
+- Removed incorrect `"main": "playwright.config.js"` field
+- Removed `"type": "commonjs"` (project uses ES modules)
+- Added descriptive keywords: `["chess", "browser", "vanilla-js", "ai", "game"]`
+- Version bumped to 1.1.0
+
+### Fixed
+
+#### Debug console.log Removed
+- Removed `console.log("BoardView.render lastMove:", lastMove)` from `BoardView.js:113`
+- Removed `console.log("Adding highlight-last-move to square:", square)` from `BoardView.js:137`
+
+#### README Accuracy Fixed
+- Removed false "Zero dependencies" claim (project depends on `@vanduo-oss/framework`)
+- Removed non-existent `ThemeManager.js` from project structure listing
+- Added `storage.js` and `DisclaimerModal.js` to project structure
+- Updated feature list with new capabilities (undo, coordinate labels, Zobrist hashing)
+- Added dependency section listing actual dependencies
+- Added test running instructions
+- Added difficulty level table with features per level
+
+### Technical Details
+
+#### Zobrist Implementation
+- `ZOBRIST_PIECES[12][64]` - random 32-bit ints for each piece type on each square
+- `ZOBRIST_SIDE` - single value toggled when side to move changes
+- `ZOBRIST_CASTLING[16]` - one value per combination of 4 castling rights
+- `ZOBRIST_EP_FILE[8]` - one value per file for en passant
+- Hash updated incrementally via XOR in `applyMoveSearch()`:
+  - XOR out piece from origin square
+  - XOR out captured piece from target square
+  - XOR out old en passant/castling
+  - XOR in piece at destination
+  - XOR in new en passant/castling
+  - XOR in side to move toggle
+
+#### Undo Stack Implementation
+- `GameState.undoStack` stores state snapshots before each move
+- Each snapshot: board (cloned), activeColor, castlingRights (deep cloned), enPassantTarget, halfmoveClock, fullmoveNumber, result, lastMove, lastMoveText, repetitionMap
+- `undoLastMove()` pops two entries (current + previous) to undo player + computer moves
+- `canUndo()` checks for at least 2 entries in undo stack
+
+---
+
+## [Unreleased] - Previous
 
 ### Added
 
@@ -45,14 +150,6 @@ Increased search depths and reduced randomness for stronger play:
 | 3     | 3         | 3         | 15%            | 10%            |
 | 4     | 3         | 4         | 8%             | 5%             |
 | 5     | 4         | 5         | 5%             | 3%             |
-
-#### Files Modified
-- `js/engine/AI.js` - Added all search optimizations (MVV-LVA, killer moves, transposition table, null move, history heuristic, LMR)
-- `js/engine/Evaluator.js` - Added positional evaluation terms including king safety
-- `js/Game.js` - Added Web Worker integration with fallback
-
-#### Files Added
-- `js/ai.worker.js` - Dedicated Web Worker for AI computation
 
 ### Technical Details
 

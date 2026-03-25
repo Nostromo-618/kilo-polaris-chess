@@ -9,6 +9,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Full Game Flow', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('/');
+        await page.evaluate(() => {
+            localStorage.setItem('kpc-disclaimer-accepted', 'true');
+        });
+        await page.reload();
         // Set to Level 1 (very easy) to minimize AI thinking time
         await page.locator('#difficulty-select').selectOption('1');
         // Set thinking time to minimum

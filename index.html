@@ -7,11 +7,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Modern vanilla JS chess vs computer with 5 difficulty levels." />
 
-  <!-- Vanduo Framework CSS (Local) -->
-  <link rel="stylesheet" href="dist/vanduo.min.css" />
+  <!-- Vanduo Framework CSS (npm package) -->
+  <link rel="stylesheet" href="node_modules/@vanduo-oss/framework/dist/vanduo.min.css" />
 
-  <!-- Phosphor Icons (Local Duotone) -->
-  <link rel="stylesheet" href="dist/icons/phosphor/duotone/style.css" />
+  <!-- Phosphor Icons (npm package Duotone) -->
+  <link rel="stylesheet" href="node_modules/@vanduo-oss/framework/dist/icons/phosphor/duotone/style.css" />
 
   <!-- Custom theme (after Vanduo for overrides) -->
   <link rel="stylesheet" href="styles/theme.css" />
@@ -19,21 +19,26 @@
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-  <!-- Vanduo Framework JS -->
-  <script src="dist/vanduo.min.js"></script>
+  <!-- Vanduo Framework JS (npm package) -->
+  <script src="node_modules/@vanduo-oss/framework/dist/vanduo.min.js"></script>
 </head>
 
 <body>
   <div id="app-root">
     <header class="app-header glass-panel">
-      <div class="vd-container-lg vd-d-flex vd-align-items-center vd-justify-content-between">
+      <div class="vd-container-lg vd-d-flex items-center justify-between">
         <h1 class="app-title">
           <i class="ph-duotone ph-chess-piece" style="color: var(--color-primary);"></i>
           Kilo Polaris Chess
         </h1>
-        <button class="vd-theme-customizer-trigger" data-theme-customizer-trigger aria-label="Open theme customizer">
-          <i class="ph-duotone ph-paint-roller"></i>
-        </button>
+        <div class="vd-d-flex items-center vd-gap-4">
+          <button id="theme-toggle-btn" class="vd-theme-customizer-trigger" aria-label="Toggle theme">
+            <i class="ph-duotone ph-desktop"></i>
+          </button>
+          <button class="vd-theme-customizer-trigger" data-theme-customizer-trigger aria-label="Open theme customizer">
+            <i class="ph-duotone ph-paint-roller"></i>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -70,12 +75,19 @@
 
               <div class="vd-form-group">
                 <label for="thinking-time" class="vd-form-label">Thinking Time (s):</label>
-                <input type="number" id="thinking-time" class="vd-input" value="10" min="1" max="60" style="width: 80px;">
+                <input type="number" id="thinking-time" class="vd-input" value="10" min="1" max="60"
+                  style="width: 80px;">
               </div>
 
               <div class="vd-form-group vd-mt-5">
                 <button id="new-game-btn" class="vd-btn vd-btn-primary vd-btn-block vd-shadow-lg">
                   <i class="ph-duotone ph-play vd-mr-2"></i> New Game
+                </button>
+              </div>
+
+              <div class="vd-form-group">
+                <button id="undo-btn" class="vd-btn vd-btn-secondary vd-btn-block" disabled>
+                  <i class="ph-duotone ph-arrow-counter-clockwise vd-mr-2"></i> Undo
                 </button>
               </div>
             </section>
@@ -98,6 +110,9 @@
       </div>
     </main>
   </div>
+
+  <!-- Disclaimer Modal Container (first-visit, mandatory) -->
+  <div id="disclaimer-modal-container"></div>
 
   <!-- Game End Modal Container -->
   <div id="game-end-modal-container"></div>

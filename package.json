@@ -1,8 +1,7 @@
 {
   "name": "browser-chess-pure",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "A pure client-side chess game implementation that runs entirely in the browser. All computation happens on the client side, making it perfect for static hosting on GitHub Pages.",
-  "main": "playwright.config.js",
   "directories": {
     "test": "tests"
   },
@@ -19,15 +18,17 @@
     "type": "git",
     "url": "git+https://github.com/Nostromo-618/browser-chess-pure-js.git"
   },
-  "keywords": [],
+  "keywords": ["chess", "browser", "vanilla-js", "ai", "game"],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/Nostromo-618/browser-chess-pure-js/issues"
   },
   "homepage": "https://github.com/Nostromo-618/browser-chess-pure-js#readme",
   "devDependencies": {
     "@playwright/test": "^1.57.0"
+  },
+  "dependencies": {
+    "@vanduo-oss/framework": "^1.3.1"
   }
 }

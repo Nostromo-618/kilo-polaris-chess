@@ -1,4 +1,4 @@
-/*! Vanduo v1.1.6 | Built: 2026-02-16T19:13:56.934Z | git:03df055 | development */
+/*! Vanduo v1.3.1 | Built: 2026-03-20T21:48:40.922Z | git:7e73bb8 | development */
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -132,8 +132,9 @@ module.exports = __toCommonJS(index_exports);
 // js/vanduo.js
 (function() {
   "use strict";
+  const VANDUO_VERSION = true ? "1.3.1" : "0.0.0-dev";
   const Vanduo2 = {
-    version: "1.1.1",
+    version: VANDUO_VERSION,
     components: {},
     /**
      * Initialize framework
@@ -168,7 +169,7 @@ module.exports = __toCommonJS(index_exports);
           }
         }
       });
-      console.log("Vanduo Framework v1.1.1 initialized");
+      console.log("Vanduo Framework v" + this.version + " initialized");
     },
     /**
      * Register a component
@@ -183,7 +184,7 @@ module.exports = __toCommonJS(index_exports);
      * @param {string} name - Component name
      */
     reinit: function(name) {
-      var component = this.components[name];
+      const component = this.components[name];
       if (component && component.init && typeof component.init === "function") {
         try {
           component.init();
@@ -197,9 +198,9 @@ module.exports = __toCommonJS(index_exports);
      * Uses lifecycle manager for memory leak prevention
      */
     destroyAll: function() {
-      var names = Object.keys(this.components);
-      for (var i = 0; i < names.length; i++) {
-        var component = this.components[names[i]];
+      const names = Object.keys(this.components);
+      for (let i = 0; i < names.length; i++) {
+        const component = this.components[names[i]];
         if (component && component.destroyAll && typeof component.destroyAll === "function") {
           try {
             component.destroyAll();
@@ -442,16 +443,17 @@ module.exports = __toCommonJS(index_exports);
       }
       const codeElement = activePane.querySelector("code") || activePane;
       const code = codeElement.textContent;
+      let copySuccess;
       try {
         await navigator.clipboard.writeText(code);
-        this.showCopyFeedback(copyBtn, true);
+        copySuccess = true;
       } catch (_err) {
-        const success = this.fallbackCopy(code);
-        this.showCopyFeedback(copyBtn, success);
+        copySuccess = this.fallbackCopy(code);
       }
+      this.showCopyFeedback(copyBtn, copySuccess);
       const event = new CustomEvent("codesnippet:copy", {
         bubbles: true,
-        detail: { snippet, code, success: true }
+        detail: { snippet, code, success: copySuccess }
       });
       snippet.dispatchEvent(event);
     },
@@ -516,7 +518,9 @@ module.exports = __toCommonJS(index_exports);
       html = this.formatHtml(html);
       html = this.escapeHtml(html);
       html = this.highlightHtml(html);
-      pane.innerHTML = "<code>" + html + "</code>";
+      const codeEl = document.createElement("code");
+      codeEl.innerHTML = html;
+      pane.replaceChildren(codeEl);
       pane.dataset.extracted = "true";
     },
     /**
@@ -621,7 +625,7 @@ module.exports = __toCommonJS(index_exports);
       }
       const codeWrapper = document.createElement("div");
       codeWrapper.className = "vd-code-snippet-code";
-      codeWrapper.innerHTML = code.outerHTML;
+      codeWrapper.appendChild(code.cloneNode(true));
       code.parentNode.removeChild(code);
       pane.appendChild(lineNumbers);
       pane.appendChild(codeWrapper);
@@ -886,9 +890,6 @@ module.exports = __toCommonJS(index_exports);
   const Dropdown = {
     // Store initialized dropdowns and their cleanup functions
     instances: /* @__PURE__ */ new Map(),
-    // Typeahead state
-    _typeaheadBuffer: "",
-    _typeaheadTimer: null,
     /**
      * Initialize dropdown components
      */
@@ -952,7 +953,7 @@ module.exports = __toCommonJS(index_exports);
         item.addEventListener("keydown", itemKeydownHandler);
         cleanupFunctions.push(() => item.removeEventListener("keydown", itemKeydownHandler));
       });
-      this.instances.set(dropdown, { toggle, menu, cleanup: cleanupFunctions });
+      this.instances.set(dropdown, { toggle, menu, cleanup: cleanupFunctions, typeaheadBuffer: "", typeaheadTimer: null });
     },
     /**
      * Toggle dropdown
@@ -1081,16 +1082,18 @@ module.exports = __toCommonJS(index_exports);
           break;
         default:
           if (isOpen && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-            clearTimeout(this._typeaheadTimer);
-            this._typeaheadBuffer += e.key.toLowerCase();
+            const instance = this.instances.get(dropdown);
+            if (!instance) break;
+            clearTimeout(instance.typeaheadTimer);
+            instance.typeaheadBuffer += e.key.toLowerCase();
             const match = items.find(
-              (item) => item.textContent.trim().toLowerCase().startsWith(this._typeaheadBuffer)
+              (item) => item.textContent.trim().toLowerCase().startsWith(instance.typeaheadBuffer)
             );
             if (match) {
               match.focus();
             }
-            this._typeaheadTimer = setTimeout(() => {
-              this._typeaheadBuffer = "";
+            instance.typeaheadTimer = setTimeout(() => {
+              instance.typeaheadBuffer = "";
             }, 500);
           }
           break;
@@ -1387,20 +1390,20 @@ module.exports = __toCommonJS(index_exports);
 // js/components/grid.js
 (function() {
   "use strict";
-  var supportsHas = (function() {
+  const supportsHas = (function() {
     try {
       return CSS.supports("selector(:has(*))");
     } catch (_e) {
       return false;
     }
   })();
-  var GridLayout = {
+  const GridLayout = {
     instances: /* @__PURE__ */ new Map(),
     /**
      * Initialize all grid layout containers
      */
     init: function() {
-      var containers = document.querySelectorAll("[data-layout-mode]");
+      const containers = document.querySelectorAll("[data-layout-mode]");
       containers.forEach(function(container) {
         if (this.instances.has(container)) {
           return;
@@ -1414,8 +1417,8 @@ module.exports = __toCommonJS(index_exports);
      * @param {HTMLElement} container - Element with data-layout-mode
      */
     initContainer: function(container) {
-      var mode = container.getAttribute("data-layout-mode") || "standard";
-      var cleanupFunctions = [];
+      const mode = container.getAttribute("data-layout-mode") || "standard";
+      const cleanupFunctions = [];
       this.applyMode(container, mode);
       container.setAttribute("role", "region");
       container.setAttribute("aria-label", "Grid layout: " + mode + " mode");
@@ -1428,15 +1431,15 @@ module.exports = __toCommonJS(index_exports);
      * Initialize toggle buttons that target grid containers
      */
     initToggleButtons: function() {
-      var toggleButtons = document.querySelectorAll("[data-grid-toggle]");
+      const toggleButtons = document.querySelectorAll("[data-grid-toggle]");
       toggleButtons.forEach(function(button) {
         if (button.getAttribute("data-grid-initialized") === "true") {
           return;
         }
-        var clickHandler = function(e) {
+        const clickHandler = function(e) {
           e.preventDefault();
-          var targetSelector = button.getAttribute("data-grid-toggle");
-          var target;
+          const targetSelector = button.getAttribute("data-grid-toggle");
+          let target;
           if (targetSelector) {
             target = document.querySelector(targetSelector);
           } else {
@@ -1462,10 +1465,10 @@ module.exports = __toCommonJS(index_exports);
      */
     applyFibFallback: function(container) {
       if (supportsHas) return;
-      var rows = container.querySelectorAll(".vd-row, .row");
+      const rows = container.querySelectorAll(".vd-row, .row");
       rows.forEach(function(row) {
-        var cols = row.querySelectorAll(':scope > [class*="vd-col-"], :scope > [class*="col-"]');
-        var count = cols.length;
+        const cols = row.querySelectorAll(':scope > [class*="vd-col-"], :scope > [class*="col-"]');
+        const count = cols.length;
         if (count === 1) {
           row.style.gridTemplateColumns = "1fr";
         } else if (count === 2) {
@@ -1484,7 +1487,7 @@ module.exports = __toCommonJS(index_exports);
      * @param {HTMLElement} container - Grid container
      */
     removeFibFallback: function(container) {
-      var rows = container.querySelectorAll(".vd-row, .row");
+      const rows = container.querySelectorAll(".vd-row, .row");
       rows.forEach(function(row) {
         row.style.gridTemplateColumns = "";
       });
@@ -1505,11 +1508,11 @@ module.exports = __toCommonJS(index_exports);
       }
       container.setAttribute("data-layout-mode", mode);
       container.setAttribute("aria-label", "Grid layout: " + mode + " mode");
-      var toggleButtons = document.querySelectorAll("[data-grid-toggle]");
+      const toggleButtons = document.querySelectorAll("[data-grid-toggle]");
       toggleButtons.forEach(function(btn) {
-        var targetSelector = btn.getAttribute("data-grid-toggle");
+        const targetSelector = btn.getAttribute("data-grid-toggle");
         if (targetSelector && container.matches(targetSelector)) {
-          var isActive = mode === "fibonacci";
+          const isActive = mode === "fibonacci";
           if (isActive) {
             btn.classList.add("is-active");
           } else {
@@ -1518,11 +1521,11 @@ module.exports = __toCommonJS(index_exports);
           btn.setAttribute("aria-pressed", isActive ? "true" : "false");
         }
       });
-      var instance = this.instances.get(container);
+      const instance = this.instances.get(container);
       if (instance) {
         instance.mode = mode;
       }
-      var event;
+      let event;
       try {
         event = new CustomEvent("grid:modechange", {
           bubbles: true,
@@ -1549,8 +1552,8 @@ module.exports = __toCommonJS(index_exports);
         container = document.querySelector(container);
       }
       if (!container) return;
-      var currentMode = container.getAttribute("data-layout-mode") || "standard";
-      var newMode = currentMode === "fibonacci" ? "standard" : "fibonacci";
+      const currentMode = container.getAttribute("data-layout-mode") || "standard";
+      const newMode = currentMode === "fibonacci" ? "standard" : "fibonacci";
       this.applyMode(container, newMode);
     },
     /**
@@ -1583,7 +1586,7 @@ module.exports = __toCommonJS(index_exports);
      * @param {HTMLElement} container - Grid container
      */
     destroy: function(container) {
-      var instance = this.instances.get(container);
+      const instance = this.instances.get(container);
       if (!instance) return;
       instance.cleanup.forEach(function(fn) {
         fn();
@@ -1600,7 +1603,7 @@ module.exports = __toCommonJS(index_exports);
       this.instances.forEach(function(instance, container) {
         this.destroy(container);
       }.bind(this));
-      var toggleButtons = document.querySelectorAll('[data-grid-initialized="true"]');
+      const toggleButtons = document.querySelectorAll('[data-grid-initialized="true"]');
       toggleButtons.forEach(function(button) {
         if (button._gridCleanup) {
           button._gridCleanup();
@@ -1798,9 +1801,10 @@ module.exports = __toCommonJS(index_exports);
       }));
       if (!this.img.complete) {
         this.img.style.opacity = "0";
-        this.img.onload = () => {
+        this._imgLoadHandler = () => {
           this.img.style.opacity = "";
         };
+        this.img.addEventListener("load", this._imgLoadHandler, { once: true });
       }
     },
     /**
@@ -1819,6 +1823,10 @@ module.exports = __toCommonJS(index_exports);
       }
       setTimeout(() => {
         if (!this.isOpen) {
+          if (this._imgLoadHandler) {
+            this.img.removeEventListener("load", this._imgLoadHandler);
+            this._imgLoadHandler = null;
+          }
           this.img.src = "";
           this.img.alt = "";
         }
@@ -1878,6 +1886,8 @@ module.exports = __toCommonJS(index_exports);
     zIndexCounter: 1050,
     // Store trigger cleanup functions
     _triggerCleanups: [],
+    // Shared ESC key handler (installed once)
+    _sharedEscHandler: null,
     /**
      * Initialize modals
      */
@@ -1942,16 +1952,17 @@ module.exports = __toCommonJS(index_exports);
       };
       backdrop.addEventListener("click", backdropClickHandler);
       cleanupFunctions.push(() => backdrop.removeEventListener("click", backdropClickHandler));
-      const escKeyHandler = (e) => {
-        if (e.key === "Escape" && this.openModals.length > 0) {
-          const topModal = this.openModals[this.openModals.length - 1];
-          if (topModal === modal && topModal.dataset.keyboard !== "false") {
-            this.close(topModal);
+      if (!this._sharedEscHandler) {
+        this._sharedEscHandler = (e) => {
+          if (e.key === "Escape" && this.openModals.length > 0) {
+            const topModal = this.openModals[this.openModals.length - 1];
+            if (topModal.dataset.keyboard !== "false") {
+              this.close(topModal);
+            }
           }
-        }
-      };
-      document.addEventListener("keydown", escKeyHandler);
-      cleanupFunctions.push(() => document.removeEventListener("keydown", escKeyHandler));
+        };
+        document.addEventListener("keydown", this._sharedEscHandler);
+      }
       this.modals.set(modal, { backdrop, dialog, trapHandler: null, cleanup: cleanupFunctions });
     },
     /**
@@ -2131,6 +2142,10 @@ module.exports = __toCommonJS(index_exports);
       });
       this._triggerCleanups.forEach((fn) => fn());
       this._triggerCleanups = [];
+      if (this._sharedEscHandler) {
+        document.removeEventListener("keydown", this._sharedEscHandler);
+        this._sharedEscHandler = null;
+      }
     }
   };
   if (typeof window.Vanduo !== "undefined") {
@@ -2296,7 +2311,7 @@ module.exports = __toCommonJS(index_exports);
       if (overlay) {
         overlay.classList.add("is-active");
       }
-      document.body.style.overflow = "hidden";
+      document.body.classList.add("body-navbar-open");
       toggle.setAttribute("aria-expanded", "true");
       menu.setAttribute("aria-hidden", "false");
     },
@@ -2313,7 +2328,7 @@ module.exports = __toCommonJS(index_exports);
       if (overlay) {
         overlay.classList.remove("is-active");
       }
-      document.body.style.overflow = "";
+      document.body.classList.remove("body-navbar-open");
       const dropdownMenus = menu.querySelectorAll(".vd-navbar-dropdown-menu.is-open");
       dropdownMenus.forEach((dropdownMenu) => {
         dropdownMenu.classList.remove("is-open");
@@ -2872,9 +2887,6 @@ module.exports = __toCommonJS(index_exports);
   const Select = {
     // Store initialized selects and their cleanup functions
     instances: /* @__PURE__ */ new Map(),
-    // Typeahead state
-    _typeaheadBuffer: "",
-    _typeaheadTimer: null,
     /**
      * Initialize select components
      */
@@ -2955,7 +2967,7 @@ module.exports = __toCommonJS(index_exports);
       };
       select.addEventListener("change", changeHandler);
       cleanupFunctions.push(() => select.removeEventListener("change", changeHandler));
-      this.instances.set(select, { wrapper, button, dropdown, cleanup: cleanupFunctions });
+      this.instances.set(select, { wrapper, button, dropdown, cleanup: cleanupFunctions, typeaheadBuffer: "", typeaheadTimer: null });
     },
     /**
      * Build options in dropdown
@@ -3049,7 +3061,7 @@ module.exports = __toCommonJS(index_exports);
      * @param {HTMLElement} dropdown - Dropdown container
      */
     updateSelectedOptions: function(select, dropdown) {
-      const options = dropdown.querySelectorAll(".vd-custom-select-option");
+      const options = dropdown.querySelectorAll(".custom-select-option");
       const selectedValues = Array.from(select.selectedOptions).map((opt) => opt.value);
       options.forEach((optionEl) => {
         const value = optionEl.dataset.value;
@@ -3083,7 +3095,7 @@ module.exports = __toCommonJS(index_exports);
     openDropdown: function(button, dropdown) {
       dropdown.classList.add("is-open");
       button.setAttribute("aria-expanded", "true");
-      const firstOption = dropdown.querySelector(".vd-custom-select-option:not(.is-disabled)");
+      const firstOption = dropdown.querySelector(".custom-select-option:not(.is-disabled)");
       if (firstOption) {
         firstOption.focus();
       }
@@ -3106,7 +3118,7 @@ module.exports = __toCommonJS(index_exports);
      */
     handleKeydown: function(e, select, button, dropdown) {
       const isOpen = dropdown.classList.contains("is-open");
-      const options = Array.from(dropdown.querySelectorAll(".vd-custom-select-option:not(.is-disabled)"));
+      const options = Array.from(dropdown.querySelectorAll(".custom-select-option:not(.is-disabled)"));
       const currentIndex = options.findIndex((opt) => opt === document.activeElement);
       switch (e.key) {
         case "Enter":
@@ -3157,16 +3169,18 @@ module.exports = __toCommonJS(index_exports);
           break;
         default:
           if (isOpen && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-            clearTimeout(this._typeaheadTimer);
-            this._typeaheadBuffer += e.key.toLowerCase();
+            const instance = this.instances.get(select);
+            if (!instance) break;
+            clearTimeout(instance.typeaheadTimer);
+            instance.typeaheadBuffer += e.key.toLowerCase();
             const match = options.find(
-              (opt) => opt.textContent.trim().toLowerCase().startsWith(this._typeaheadBuffer)
+              (opt) => opt.textContent.trim().toLowerCase().startsWith(instance.typeaheadBuffer)
             );
             if (match) {
               match.focus();
             }
-            this._typeaheadTimer = setTimeout(() => {
-              this._typeaheadBuffer = "";
+            instance.typeaheadTimer = setTimeout(() => {
+              instance.typeaheadBuffer = "";
             }, 500);
           }
           break;
@@ -3198,7 +3212,9 @@ module.exports = __toCommonJS(index_exports);
       if (element.id) {
         return element.id;
       }
-      return "select-" + Math.random().toString(36).substr(2, 9);
+      const id = "select-" + Math.random().toString(36).substr(2, 9);
+      element.id = id;
+      return id;
     },
     /**
      * Destroy a select instance and clean up event listeners
@@ -3250,7 +3266,7 @@ module.exports = __toCommonJS(index_exports);
      * Initialize sidenav components
      */
     init: function() {
-      const sidenavs = document.querySelectorAll(".vd-sidenav");
+      const sidenavs = document.querySelectorAll(".vd-sidenav, .vd-offcanvas");
       sidenavs.forEach((sidenav) => {
         if (this.sidenavs.has(sidenav)) {
           return;
@@ -3284,8 +3300,13 @@ module.exports = __toCommonJS(index_exports);
      * @param {HTMLElement} sidenav - Sidenav element
      */
     initSidenav: function(sidenav) {
+      const position = sidenav.getAttribute("data-vd-position");
+      if (position) {
+        const prefix = sidenav.classList.contains("vd-offcanvas") ? "vd-offcanvas" : "vd-sidenav";
+        sidenav.classList.add(prefix + "-" + position);
+      }
       const overlay = this.createOverlay(sidenav);
-      const closeButton = sidenav.querySelector(".vd-sidenav-close");
+      const closeButton = sidenav.querySelector(".vd-sidenav-close, .vd-offcanvas-close");
       const cleanupFunctions = [];
       sidenav.setAttribute("role", "navigation");
       sidenav.setAttribute("aria-hidden", "true");
@@ -3697,9 +3718,9 @@ module.exports = __toCommonJS(index_exports);
     },
     // Default values
     DEFAULTS: {
-      PRIMARY_LIGHT: "amber",
+      PRIMARY_LIGHT: "black",
       PRIMARY_DARK: "amber",
-      NEUTRAL: "slate",
+      NEUTRAL: "neutral",
       RADIUS: "0.5",
       FONT: "ubuntu",
       THEME: "system"
@@ -3894,7 +3915,9 @@ module.exports = __toCommonJS(index_exports);
       if (!this.THEME_MODES.includes(mode)) {
         mode = this.DEFAULTS.THEME;
       }
-      const oldDefault = this.getDefaultPrimary(this.state.theme);
+      this._isApplying = true;
+      const currentMode = this.state.theme;
+      const oldDefault = this.getDefaultPrimary(currentMode);
       if (this.state.primary === oldDefault) {
         const newDefault = this.getDefaultPrimary(mode);
         if (newDefault !== this.state.primary) {
@@ -3910,10 +3933,17 @@ module.exports = __toCommonJS(index_exports);
       this.savePreference(this.STORAGE_KEYS.THEME, mode);
       if (window.Vanduo && window.Vanduo.components.themeSwitcher) {
         const themeSwitcher = window.Vanduo.components.themeSwitcher;
-        if (themeSwitcher.state) {
+        if (themeSwitcher.state && themeSwitcher.state.preference !== mode) {
           themeSwitcher.state.preference = mode;
+          if (typeof themeSwitcher.setStorageValue === "function") {
+            themeSwitcher.setStorageValue(themeSwitcher.STORAGE_KEY, mode);
+          }
+          if (typeof themeSwitcher.updateUI === "function") {
+            themeSwitcher.updateUI();
+          }
         }
       }
+      this._isApplying = false;
       this.dispatchEvent("mode-change", { mode });
     },
     /**
@@ -4034,12 +4064,6 @@ module.exports = __toCommonJS(index_exports);
           this.updateUI();
         });
       }
-      this.elements.panel.querySelectorAll("[data-mode]").forEach((btn) => {
-        this.addListener(btn, "click", () => {
-          this.applyTheme(btn.dataset.mode);
-          this.updateUI();
-        });
-      });
       const resetBtn = this.elements.panel.querySelector(".customizer-reset");
       if (resetBtn) {
         this.addListener(resetBtn, "click", () => {
@@ -4062,31 +4086,34 @@ module.exports = __toCommonJS(index_exports);
      * Generate panel HTML
      */
     getPanelHTML: function() {
+      const esc = typeof escapeHtml === "function" ? escapeHtml : function(text) {
+        const div = document.createElement("div");
+        div.textContent = String(text ?? "");
+        return div.innerHTML;
+      };
+      const safeColor = function(value) {
+        const normalized = String(value ?? "").trim();
+        if (/^(#[0-9a-fA-F]{3,8}|rgb[a]?\([^)]{1,60}\)|hsl[a]?\([^)]{1,60}\)|var\(--[a-zA-Z0-9_-]{1,40}\))$/.test(normalized)) {
+          return normalized;
+        }
+        return "#000000";
+      };
       let primarySwatches = "";
       for (const [key, value] of Object.entries(this.PRIMARY_COLORS)) {
-        primarySwatches += `<button class="tc-color-swatch${key === this.state.primary ? " is-active" : ""}" data-color="${key}" style="--swatch-color: ${value.color}" title="${value.name}"></button>`;
+        primarySwatches += `<button class="tc-color-swatch${key === this.state.primary ? " is-active" : ""}" data-color="${esc(key)}" style="--swatch-color: ${safeColor(value.color)}" title="${esc(value.name)}"></button>`;
       }
       let neutralSwatches = "";
       for (const [key, value] of Object.entries(this.NEUTRAL_COLORS)) {
-        neutralSwatches += `<button class="tc-neutral-swatch${key === this.state.neutral ? " is-active" : ""}" data-neutral="${key}" style="--swatch-color: ${value.color}" title="${value.name}"><span>${value.name}</span></button>`;
+        neutralSwatches += `<button class="tc-neutral-swatch${key === this.state.neutral ? " is-active" : ""}" data-neutral="${esc(key)}" style="--swatch-color: ${safeColor(value.color)}" title="${esc(value.name)}"><span>${esc(value.name)}</span></button>`;
       }
       let radiusButtons = "";
       this.RADIUS_OPTIONS.forEach((r) => {
-        radiusButtons += `<button class="tc-radius-btn${r === this.state.radius ? " is-active" : ""}" data-radius="${r}">${r}</button>`;
+        radiusButtons += `<button class="tc-radius-btn${r === this.state.radius ? " is-active" : ""}" data-radius="${esc(r)}">${esc(r)}</button>`;
       });
       let fontOptions = "";
       for (const [key, value] of Object.entries(this.FONT_OPTIONS)) {
-        fontOptions += `<option value="${key}"${key === this.state.font ? " selected" : ""}>${value.name}</option>`;
+        fontOptions += `<option value="${esc(key)}"${key === this.state.font ? " selected" : ""}>${esc(value.name)}</option>`;
       }
-      const modeIcons = {
-        "system": "ph-desktop",
-        "dark": "ph-moon",
-        "light": "ph-sun"
-      };
-      let modeButtons = "";
-      this.THEME_MODES.forEach((mode) => {
-        modeButtons += `<button class="tc-mode-btn${mode === this.state.theme ? " is-active" : ""}" data-mode="${mode}"><i class="ph ${modeIcons[mode]}"></i><span>${mode.charAt(0).toUpperCase() + mode.slice(1)}</span></button>`;
-      });
       return `
         <div class="tc-header">
           <h3 class="tc-title">Customize Theme</h3>
@@ -4095,12 +4122,7 @@ module.exports = __toCommonJS(index_exports);
           </button>
         </div>
         <div class="tc-body">
-          <div class="tc-section">
-            <label class="tc-label">Color Mode</label>
-            <div class="tc-mode-group">
-              ${modeButtons}
-            </div>
-          </div>
+
           <div class="tc-section">
             <label class="tc-label">Primary Color</label>
             <div class="tc-color-grid">
@@ -4134,6 +4156,13 @@ module.exports = __toCommonJS(index_exports);
     /**
      * Bind event listeners
      */
+    /**
+     * Check whether the current primary color is one of the auto-defaults
+     * (i.e. the user hasn't explicitly picked a non-default color).
+     */
+    isUsingDefaultPrimary: function() {
+      return this.state.primary === this.DEFAULTS.PRIMARY_LIGHT || this.state.primary === this.DEFAULTS.PRIMARY_DARK;
+    },
     bindEvents: function() {
       if (this.elements.trigger) {
         this.addListener(this.elements.trigger, "click", (e) => {
@@ -4143,6 +4172,20 @@ module.exports = __toCommonJS(index_exports);
         });
       }
       this.bindPanelEvents();
+      if (window.matchMedia) {
+        const mq = window.matchMedia("(prefers-color-scheme: dark)");
+        const handler = () => {
+          if (this.state.theme === "system" && this.isUsingDefaultPrimary()) {
+            const newDefault = this.getDefaultPrimary("system");
+            if (newDefault !== this.state.primary) {
+              this.applyPrimary(newDefault);
+              this.updateUI();
+            }
+          }
+        };
+        mq.addEventListener("change", handler);
+        this._cleanup.push(() => mq.removeEventListener("change", handler));
+      }
       this.addListener(document, "click", (e) => {
         if (this.state.isOpen && this.elements.customizer && !this.elements.customizer.contains(e.target)) {
           this.close();
@@ -4215,9 +4258,6 @@ module.exports = __toCommonJS(index_exports);
       if (fontSelect) {
         fontSelect.value = this.state.font;
       }
-      this.elements.panel.querySelectorAll("[data-mode]").forEach((btn) => {
-        btn.classList.toggle("is-active", btn.dataset.mode === this.state.theme);
-      });
     },
     /**
      * Reset all preferences to defaults
@@ -4228,7 +4268,6 @@ module.exports = __toCommonJS(index_exports);
       this.applyNeutral(this.DEFAULTS.NEUTRAL);
       this.applyRadius(this.DEFAULTS.RADIUS);
       this.applyFont(this.DEFAULTS.FONT);
-      this.applyTheme(this.DEFAULTS.THEME);
       this.updateUI();
       this.dispatchEvent("reset", { state: { ...this.state } });
     },
@@ -4319,6 +4358,9 @@ module.exports = __toCommonJS(index_exports);
       this.state.preference = pref;
       this.setStorageValue(this.STORAGE_KEY, pref);
       this.applyTheme();
+      if (window.ThemeCustomizer && window.ThemeCustomizer.applyTheme && !window.ThemeCustomizer._isApplying) {
+        window.ThemeCustomizer.applyTheme(pref);
+      }
       this.updateUI();
     },
     getStorageValue: function(key, fallback) {
@@ -4704,7 +4746,7 @@ module.exports = __toCommonJS(index_exports);
       if (typeof sanitizeHtml === "function") {
         return sanitizeHtml(input);
       }
-      var div = document.createElement("div");
+      const div = document.createElement("div");
       div.textContent = input || "";
       return div.innerHTML;
     },
@@ -4943,7 +4985,7 @@ module.exports = __toCommonJS(index_exports);
 // js/components/doc-search.js
 (function() {
   "use strict";
-  var DEFAULTS = {
+  const DEFAULTS = {
     // Behavior
     minQueryLength: 2,
     maxResults: 10,
@@ -4990,8 +5032,8 @@ module.exports = __toCommonJS(index_exports);
     placeholder: "Search..."
   };
   function createSearch(options) {
-    var config = Object.assign({}, DEFAULTS, options || {});
-    var state = {
+    const config = Object.assign({}, DEFAULTS, options || {});
+    const state = {
       initialized: false,
       index: [],
       results: [],
@@ -5004,6 +5046,21 @@ module.exports = __toCommonJS(index_exports);
       debounceTimer: null,
       boundHandlers: {}
     };
+    function safeInvokeCallback(name, fn, ...args) {
+      try {
+        fn(...args);
+      } catch (error) {
+        console.warn('[Vanduo Search] Callback error in "' + name + '":', error);
+      }
+    }
+    function setResultsHtml(html) {
+      if (!state.resultsContainer) return;
+      try {
+        state.resultsContainer.innerHTML = html;
+      } catch (error) {
+        console.warn("[Vanduo Search] Failed to render results:", error);
+      }
+    }
     function init() {
       if (state.initialized) {
         return instance;
@@ -5045,20 +5102,20 @@ module.exports = __toCommonJS(index_exports);
         });
         return;
       }
-      var sections = document.querySelectorAll(config.contentSelector);
-      var categoryMap = buildCategoryMap();
+      const sections = document.querySelectorAll(config.contentSelector);
+      const categoryMap = buildCategoryMap();
       sections.forEach(function(section) {
-        var id = section.id;
+        const id = section.id;
         if (!id) return;
-        var titleEl = section.querySelector(config.titleSelector);
-        var title = titleEl ? titleEl.textContent.replace(/v[\d.]+/g, "").trim() : id;
-        var category = categoryMap[id] || "Documentation";
-        var content = extractContent(section);
-        var keywords = extractKeywords(section, title);
-        var iconEl = titleEl ? titleEl.querySelector("i.ph") : null;
-        var icon = "";
+        const titleEl = section.querySelector(config.titleSelector);
+        const title = titleEl ? titleEl.textContent.replace(/v[\d.]+/g, "").trim() : id;
+        const category = categoryMap[id] || "Documentation";
+        const content = extractContent(section);
+        const keywords = extractKeywords(section, title);
+        const iconEl = titleEl ? titleEl.querySelector("i.ph") : null;
+        let icon = "";
         if (iconEl && iconEl.classList) {
-          for (var ci = 0; ci < iconEl.classList.length; ci++) {
+          for (let ci = 0; ci < iconEl.classList.length; ci++) {
             if (iconEl.classList[ci].indexOf("ph-") === 0) {
               icon = iconEl.classList[ci];
               break;
@@ -5078,16 +5135,16 @@ module.exports = __toCommonJS(index_exports);
       });
     }
     function buildCategoryMap() {
-      var map = {};
-      var currentCategory = "Documentation";
-      var navItems = document.querySelectorAll(config.navSelector + ", " + config.sectionSelector);
+      const map = {};
+      let currentCategory = "Documentation";
+      const navItems = document.querySelectorAll(config.navSelector + ", " + config.sectionSelector);
       navItems.forEach(function(item) {
         if (item.classList.contains("doc-nav-section")) {
           currentCategory = item.textContent.trim();
         } else {
-          var href = item.getAttribute("href");
+          const href = item.getAttribute("href");
           if (href && href.startsWith("#")) {
-            var id = href.substring(1);
+            const id = href.substring(1);
             map[id] = currentCategory;
           }
         }
@@ -5095,35 +5152,35 @@ module.exports = __toCommonJS(index_exports);
       return map;
     }
     function extractContent(section) {
-      var clone = section.cloneNode(true);
-      var toRemove = clone.querySelectorAll(config.excludeFromContent);
+      const clone = section.cloneNode(true);
+      const toRemove = clone.querySelectorAll(config.excludeFromContent);
       toRemove.forEach(function(el) {
         el.remove();
       });
-      var text = clone.textContent || "";
+      let text = clone.textContent || "";
       text = text.replace(/\s+/g, " ").trim();
       return text.substring(0, config.maxContentLength);
     }
     function extractKeywords(section, title) {
-      var keywords = [];
+      const keywords = [];
       title.toLowerCase().split(/\s+/).forEach(function(word) {
         if (word.length > 2) {
           keywords.push(word);
         }
       });
-      var codeBlocks = section.querySelectorAll("code");
+      const codeBlocks = section.querySelectorAll("code");
       codeBlocks.forEach(function(code) {
-        var text = code.textContent || "";
-        var classMatches = text.match(/\.([\w-]+)/g);
+        const text = code.textContent || "";
+        const classMatches = text.match(/\.([\w-]+)/g);
         if (classMatches) {
           classMatches.forEach(function(match) {
             keywords.push(match.substring(1).toLowerCase());
           });
         }
       });
-      var dataAttrs = section.querySelectorAll("[data-tooltip], [data-modal]");
+      const dataAttrs = section.querySelectorAll("[data-tooltip], [data-modal]");
       dataAttrs.forEach(function(el) {
-        var attrs = el.getAttributeNames().filter(function(name) {
+        const attrs = el.getAttributeNames().filter(function(name) {
           return name.startsWith("data-");
         });
         attrs.forEach(function(attr) {
@@ -5133,7 +5190,7 @@ module.exports = __toCommonJS(index_exports);
       return Array.from(new Set(keywords));
     }
     function extractKeywordsFromText(text) {
-      var words = text.toLowerCase().split(/\s+/);
+      const words = text.toLowerCase().split(/\s+/);
       return words.filter(function(word) {
         return word.length > 2;
       });
@@ -5166,9 +5223,9 @@ module.exports = __toCommonJS(index_exports);
         }
       };
       state.boundHandlers.handleResultClick = function(e) {
-        var result = e.target.closest(".vd-doc-search-result");
+        const result = e.target.closest(".vd-doc-search-result");
         if (result) {
-          var index = parseInt(result.dataset.index, 10);
+          const index = parseInt(result.dataset.index, 10);
           select(index);
         }
       };
@@ -5192,7 +5249,7 @@ module.exports = __toCommonJS(index_exports);
       }
     }
     function setupAria() {
-      var resultsId = state.resultsContainer.id || "search-results-" + Math.random().toString(36).substr(2, 9);
+      const resultsId = state.resultsContainer.id || "search-results-" + Math.random().toString(36).substr(2, 9);
       state.resultsContainer.id = resultsId;
       state.input.setAttribute("role", "combobox");
       state.input.setAttribute("aria-autocomplete", "list");
@@ -5202,7 +5259,7 @@ module.exports = __toCommonJS(index_exports);
       state.resultsContainer.setAttribute("aria-label", "Search results");
     }
     function handleInput(e) {
-      var query = e.target.value.trim();
+      const query = e.target.value.trim();
       if (state.debounceTimer) {
         clearTimeout(state.debounceTimer);
       }
@@ -5217,7 +5274,7 @@ module.exports = __toCommonJS(index_exports);
         render();
         open();
         if (typeof config.onSearch === "function") {
-          config.onSearch(query, state.results);
+          safeInvokeCallback("onSearch", config.onSearch, query, state.results);
         }
       }, config.debounceMs);
     }
@@ -5258,15 +5315,15 @@ module.exports = __toCommonJS(index_exports);
       }
     }
     function search(query) {
-      var terms = query.toLowerCase().split(/\s+/).filter(function(t) {
+      const terms = query.toLowerCase().split(/\s+/).filter(function(t) {
         return t.length > 0;
       });
-      var scored = [];
+      const scored = [];
       state.index.forEach(function(entry) {
-        var score = 0;
-        var titleLower = entry.title.toLowerCase();
-        var categoryLower = entry.category.toLowerCase();
-        var contentLower = entry.content.toLowerCase();
+        let score = 0;
+        const titleLower = entry.title.toLowerCase();
+        const categoryLower = entry.category.toLowerCase();
+        const contentLower = entry.content.toLowerCase();
         terms.forEach(function(term) {
           if (titleLower.includes(term)) {
             score += 100;
@@ -5279,7 +5336,7 @@ module.exports = __toCommonJS(index_exports);
           if (categoryLower.includes(term)) {
             score += 50;
           }
-          var keywordMatch = entry.keywords.some(function(k) {
+          const keywordMatch = entry.keywords.some(function(k) {
             return k.includes(term);
           });
           if (keywordMatch) {
@@ -5309,19 +5366,19 @@ module.exports = __toCommonJS(index_exports);
     }
     function render() {
       if (state.results.length === 0) {
-        state.resultsContainer.innerHTML = renderEmpty();
+        setResultsHtml(renderEmpty());
         return;
       }
-      var html = '<ul class="vd-doc-search-results-list" role="listbox">';
+      let html = '<ul class="vd-doc-search-results-list" role="listbox">';
       state.results.forEach(function(result, index) {
-        var isActive = index === state.activeIndex;
-        var icon = result.icon || getCategoryIcon(result.categorySlug);
-        var excerpt = getExcerpt(result.content, state.query);
+        const isActive = index === state.activeIndex;
+        const icon = result.icon || getCategoryIcon(result.categorySlug);
+        const excerpt = getExcerpt(result.content, state.query);
         html += '<li class="vd-doc-search-result' + (isActive ? " is-active" : "") + '" role="option" id="vd-doc-search-result-' + index + '" data-index="' + index + '" data-category="' + escapeHtml2(result.categorySlug) + '" aria-selected="' + isActive + '"><div class="vd-doc-search-result-icon"><i class="ph ' + escapeHtml2(icon) + '"></i></div><div class="vd-doc-search-result-content"><div class="vd-doc-search-result-title">' + highlight(result.title, state.query) + '</div><div class="vd-doc-search-result-category">' + escapeHtml2(result.category) + '</div><div class="vd-doc-search-result-excerpt">' + highlight(excerpt, state.query) + "</div></div></li>";
       });
       html += "</ul>";
       html += renderFooter();
-      state.resultsContainer.innerHTML = html;
+      setResultsHtml(html);
     }
     function renderEmpty() {
       return '<div class="vd-doc-search-empty"><div class="vd-doc-search-empty-icon"><i class="ph ph-magnifying-glass"></i></div><div class="vd-doc-search-empty-title">' + escapeHtml2(config.emptyTitle) + '</div><div class="vd-doc-search-empty-text">' + escapeHtml2(config.emptyText) + "</div></div>";
@@ -5333,12 +5390,12 @@ module.exports = __toCommonJS(index_exports);
       return config.categoryIcons[categorySlug] || config.categoryIcons["default"] || "ph-file-text";
     }
     function getExcerpt(content, query) {
-      var terms = query.toLowerCase().split(/\s+/);
-      var contentLower = content.toLowerCase();
-      var excerptLength = 100;
-      var matchPos = -1;
-      for (var i = 0; i < terms.length; i++) {
-        var pos = contentLower.indexOf(terms[i]);
+      const terms = query.toLowerCase().split(/\s+/);
+      const contentLower = content.toLowerCase();
+      const excerptLength = 100;
+      let matchPos = -1;
+      for (let i = 0; i < terms.length; i++) {
+        const pos = contentLower.indexOf(terms[i]);
         if (pos !== -1 && (matchPos === -1 || pos < matchPos)) {
           matchPos = pos;
         }
@@ -5346,9 +5403,9 @@ module.exports = __toCommonJS(index_exports);
       if (matchPos === -1) {
         return content.substring(0, excerptLength) + "...";
       }
-      var start = Math.max(0, matchPos - 30);
-      var end = Math.min(content.length, matchPos + excerptLength);
-      var excerpt = content.substring(start, end);
+      const start = Math.max(0, matchPos - 30);
+      const end = Math.min(content.length, matchPos + excerptLength);
+      let excerpt = content.substring(start, end);
       if (start > 0) {
         excerpt = "..." + excerpt;
       }
@@ -5359,24 +5416,24 @@ module.exports = __toCommonJS(index_exports);
     }
     function highlight(text, query) {
       if (!query) return escapeHtml2(text);
-      var terms = query.toLowerCase().split(/\s+/).filter(function(t) {
+      const terms = query.toLowerCase().split(/\s+/).filter(function(t) {
         return t.length > 0;
       });
-      var escaped = escapeHtml2(text);
+      let escaped = escapeHtml2(text);
       terms.forEach(function(term) {
         if (term.length > 50) return;
-        var regex = new RegExp("(" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
+        const regex = new RegExp("(" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
         escaped = escaped.replace(regex, "<" + config.highlightTag + ">$1</" + config.highlightTag + ">");
       });
       return escaped;
     }
     function escapeHtml2(text) {
-      var div = document.createElement("div");
+      const div = document.createElement("div");
       div.textContent = text;
       return div.innerHTML;
     }
     function navigate(direction) {
-      var newIndex = state.activeIndex + direction;
+      let newIndex = state.activeIndex + direction;
       if (newIndex < 0) {
         newIndex = state.results.length - 1;
       } else if (newIndex >= state.results.length) {
@@ -5385,13 +5442,13 @@ module.exports = __toCommonJS(index_exports);
       setActiveIndex(newIndex);
     }
     function setActiveIndex(index) {
-      var prevActive = state.resultsContainer.querySelector(".vd-doc-search-result.is-active");
+      const prevActive = state.resultsContainer.querySelector(".vd-doc-search-result.is-active");
       if (prevActive) {
         prevActive.classList.remove("is-active");
         prevActive.setAttribute("aria-selected", "false");
       }
       state.activeIndex = index;
-      var newActive = state.resultsContainer.querySelector('[data-index="' + index + '"]');
+      const newActive = state.resultsContainer.querySelector('[data-index="' + index + '"]');
       if (newActive) {
         newActive.classList.add("is-active");
         newActive.setAttribute("aria-selected", "true");
@@ -5400,16 +5457,16 @@ module.exports = __toCommonJS(index_exports);
       }
     }
     function select(index) {
-      var result = state.results[index];
+      const result = state.results[index];
       if (!result) return;
       close();
       state.input.value = "";
       state.query = "";
       if (typeof config.onSelect === "function") {
-        config.onSelect(result);
+        safeInvokeCallback("onSelect", config.onSelect, result);
         return;
       }
-      var section = document.querySelector(result.url);
+      const section = document.querySelector(result.url);
       if (section) {
         section.scrollIntoView({ behavior: "smooth", block: "start" });
         window.history.pushState(null, "", result.url);
@@ -5417,7 +5474,7 @@ module.exports = __toCommonJS(index_exports);
       }
     }
     function updateSidebarActive(sectionId) {
-      var navLinks = document.querySelectorAll(config.navSelector);
+      const navLinks = document.querySelectorAll(config.navSelector);
       navLinks.forEach(function(link) {
         link.classList.remove("active");
         if (link.getAttribute("href") === "#" + sectionId) {
@@ -5431,7 +5488,7 @@ module.exports = __toCommonJS(index_exports);
       state.resultsContainer.classList.add("is-open");
       state.input.setAttribute("aria-expanded", "true");
       if (typeof config.onOpen === "function") {
-        config.onOpen();
+        safeInvokeCallback("onOpen", config.onOpen);
       }
     }
     function close() {
@@ -5442,7 +5499,7 @@ module.exports = __toCommonJS(index_exports);
       state.input.setAttribute("aria-expanded", "false");
       state.input.removeAttribute("aria-activedescendant");
       if (typeof config.onClose === "function") {
-        config.onClose();
+        safeInvokeCallback("onClose", config.onClose);
       }
     }
     function destroy() {
@@ -5456,7 +5513,7 @@ module.exports = __toCommonJS(index_exports);
         clearTimeout(state.debounceTimer);
       }
       if (state.resultsContainer) {
-        state.resultsContainer.innerHTML = "";
+        setResultsHtml("");
       }
     }
     function rebuild() {
@@ -5471,7 +5528,7 @@ module.exports = __toCommonJS(index_exports);
     function getIndex() {
       return state.index.slice();
     }
-    var instance = {
+    const instance = {
       init,
       destroy,
       rebuild,
@@ -5484,12 +5541,12 @@ module.exports = __toCommonJS(index_exports);
     };
     return instance;
   }
-  var Search = {
+  const Search = {
     // Factory method — creates and auto-initializes a new independent instance.
     // Always returns the instance so callers retain a reference even if the
     // DOM container is not yet available (they can retry init() later).
     create: function(options) {
-      var instance = createSearch(options);
+      const instance = createSearch(options);
       if (instance) {
         instance.init();
       }
@@ -5561,6 +5618,2951 @@ module.exports = __toCommonJS(index_exports);
   window.Search = Search;
   window.DocSearch = Search;
   window.VanduoDocSearch = Search;
+})();
+
+// js/components/draggable.js
+(function() {
+  "use strict";
+  const Draggable = {
+    // Store initialized draggables and their cleanup functions
+    instances: /* @__PURE__ */ new Map(),
+    // Store current drag state
+    currentDrag: null,
+    // Store touch state
+    touchState: null,
+    // Feedback element
+    feedbackElement: null,
+    /**
+     * Initialize draggable components
+     */
+    init: function() {
+      const draggables = document.querySelectorAll(".vd-draggable, [data-draggable]");
+      draggables.forEach((element) => {
+        if (this.instances.has(element)) {
+          return;
+        }
+        this.initDraggable(element);
+      });
+      const containers = document.querySelectorAll(".vd-draggable-container, .vd-draggable-container-vertical");
+      containers.forEach((container) => {
+        if (!this.instances.has(container)) {
+          this.initContainer(container);
+        }
+      });
+      const dropZones = document.querySelectorAll(".vd-drop-zone");
+      dropZones.forEach((zone) => {
+        if (!this.instances.has(zone)) {
+          this.initDropZone(zone);
+        }
+      });
+      this.createFeedbackElement();
+    },
+    /**
+     * Initialize a single draggable element
+     * @param {HTMLElement} element - Draggable element
+     */
+    initDraggable: function(element) {
+      const cleanupFunctions = [];
+      if (!element.hasAttribute("draggable")) {
+        element.setAttribute("draggable", "true");
+      }
+      if (!element.hasAttribute("tabindex")) {
+        element.setAttribute("tabindex", "0");
+      }
+      element.setAttribute("role", "option");
+      element.setAttribute("aria-roledescription", "draggable item");
+      element.setAttribute("aria-grabbed", "false");
+      const dragStartHandler = (e) => {
+        this.handleDragStart(e, element);
+      };
+      element.addEventListener("dragstart", dragStartHandler);
+      cleanupFunctions.push(() => element.removeEventListener("dragstart", dragStartHandler));
+      const dragHandler = (e) => {
+        this.handleDrag(e, element);
+      };
+      element.addEventListener("drag", dragHandler);
+      cleanupFunctions.push(() => element.removeEventListener("drag", dragHandler));
+      const dragEndHandler = (e) => {
+        this.handleDragEnd(e, element);
+      };
+      element.addEventListener("dragend", dragEndHandler);
+      cleanupFunctions.push(() => element.removeEventListener("dragend", dragEndHandler));
+      const touchStartHandler = (e) => {
+        this.handleTouchStart(e, element);
+      };
+      element.addEventListener("touchstart", touchStartHandler);
+      cleanupFunctions.push(() => element.removeEventListener("touchstart", touchStartHandler));
+      const touchMoveHandler = (e) => {
+        this.handleTouchMove(e, element);
+      };
+      element.addEventListener("touchmove", touchMoveHandler, { passive: false });
+      cleanupFunctions.push(() => element.removeEventListener("touchmove", touchMoveHandler));
+      const touchEndHandler = (e) => {
+        this.handleTouchEnd(e, element);
+      };
+      element.addEventListener("touchend", touchEndHandler, { passive: false });
+      cleanupFunctions.push(() => element.removeEventListener("touchend", touchEndHandler));
+      const touchCancelHandler = (e) => {
+        this.handleTouchEnd(e, element);
+      };
+      element.addEventListener("touchcancel", touchCancelHandler);
+      cleanupFunctions.push(() => element.removeEventListener("touchcancel", touchCancelHandler));
+      const keydownHandler = (e) => {
+        this.handleKeydown(e, element);
+      };
+      element.addEventListener("keydown", keydownHandler);
+      cleanupFunctions.push(() => element.removeEventListener("keydown", keydownHandler));
+      this.instances.set(element, { cleanup: cleanupFunctions });
+    },
+    /**
+     * Initialize a draggable container
+     * @param {HTMLElement} container - Draggable container
+     */
+    initContainer: function(container) {
+      container.setAttribute("role", "listbox");
+      container.setAttribute("aria-label", container.getAttribute("aria-label") || "Draggable items");
+      const items = container.querySelectorAll(".vd-draggable-item");
+      items.forEach((item) => {
+        if (!this.instances.has(item)) {
+          this.initDraggable(item);
+        }
+      });
+      const cleanupFunctions = [];
+      const dragEnterHandler = (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+      };
+      const dragOverHandler = (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (!this.currentDrag) return;
+        const draggingEl = this.currentDrag.element;
+        if (!container.contains(draggingEl)) return;
+        if (e.clientX === 0 && e.clientY === 0) return;
+        this.handleReorder(container, draggingEl, e.clientX, e.clientY);
+      };
+      const dropHandler = (e) => {
+        e.preventDefault();
+      };
+      container.addEventListener("dragenter", dragEnterHandler);
+      container.addEventListener("dragover", dragOverHandler);
+      container.addEventListener("drop", dropHandler);
+      cleanupFunctions.push(() => {
+        container.removeEventListener("dragenter", dragEnterHandler);
+        container.removeEventListener("dragover", dragOverHandler);
+        container.removeEventListener("drop", dropHandler);
+      });
+      this.instances.set(container, { cleanup: cleanupFunctions });
+    },
+    /**
+     * Initialize a drop zone
+     * @param {HTMLElement} zone - Drop zone element
+     */
+    initDropZone: function(zone) {
+      const cleanupFunctions = [];
+      zone.setAttribute("role", "region");
+      zone.setAttribute("aria-dropeffect", "move");
+      if (!zone.hasAttribute("aria-label")) {
+        zone.setAttribute("aria-label", "Drop zone");
+      }
+      const dragOverHandler = (e) => {
+        e.preventDefault();
+        this.handleDragOver(e, zone);
+      };
+      zone.addEventListener("dragover", dragOverHandler);
+      cleanupFunctions.push(() => zone.removeEventListener("dragover", dragOverHandler));
+      const dragEnterHandler = (e) => {
+        e.preventDefault();
+        this.handleDragEnter(e, zone);
+      };
+      zone.addEventListener("dragenter", dragEnterHandler);
+      cleanupFunctions.push(() => zone.removeEventListener("dragenter", dragEnterHandler));
+      const dragLeaveHandler = (e) => {
+        this.handleDragLeave(e, zone);
+      };
+      zone.addEventListener("dragleave", dragLeaveHandler);
+      cleanupFunctions.push(() => zone.removeEventListener("dragleave", dragLeaveHandler));
+      const dropHandler = (e) => {
+        e.preventDefault();
+        this.handleDrop(e, zone);
+      };
+      zone.addEventListener("drop", dropHandler);
+      cleanupFunctions.push(() => zone.removeEventListener("drop", dropHandler));
+      this.instances.set(zone, { cleanup: cleanupFunctions });
+    },
+    /**
+     * Create feedback element for drag operations
+     */
+    createFeedbackElement: function() {
+      if (!this.feedbackElement) {
+        const existing = document.querySelector(".vd-drag-feedback");
+        if (existing) {
+          this.feedbackElement = existing;
+          return;
+        }
+        this.feedbackElement = document.createElement("div");
+        this.feedbackElement.className = "vd-drag-feedback hidden";
+        this.feedbackElement.setAttribute("role", "presentation");
+        document.body.appendChild(this.feedbackElement);
+      }
+    },
+    /**
+     * Handle drag start event
+     * @param {DragEvent} e - Drag event
+     * @param {HTMLElement} element - Draggable element
+     */
+    handleDragStart: function(e, element) {
+      element.classList.add("is-dragging");
+      element.setAttribute("aria-grabbed", "true");
+      this.currentDrag = {
+        element,
+        initialPosition: { x: e.clientX, y: e.clientY },
+        initialBounds: element.getBoundingClientRect(),
+        data: this.getData(element)
+      };
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", this.currentDrag.data);
+      element.dispatchEvent(new CustomEvent("draggable:start", {
+        bubbles: true,
+        detail: {
+          element,
+          data: this.currentDrag.data,
+          position: { x: e.clientX, y: e.clientY }
+        }
+      }));
+    },
+    /**
+     * Handle drag event
+     * @param {DragEvent} e - Drag event
+     * @param {HTMLElement} element - Draggable element
+     */
+    handleDrag: function(e, element) {
+      if (!this.currentDrag) return;
+      element.dispatchEvent(new CustomEvent("draggable:drag", {
+        bubbles: true,
+        detail: {
+          element,
+          data: this.currentDrag.data,
+          position: { x: e.clientX, y: e.clientY },
+          delta: {
+            x: e.clientX - this.currentDrag.initialPosition.x,
+            y: e.clientY - this.currentDrag.initialPosition.y
+          }
+        }
+      }));
+    },
+    /**
+     * Handle drag end event
+     * @param {DragEvent} e - Drag event
+     * @param {HTMLElement} element - Draggable element
+     */
+    handleDragEnd: function(e, element) {
+      element.classList.remove("is-dragging");
+      element.classList.add("is-dropped");
+      setTimeout(() => element.classList.remove("is-dropped"), 300);
+      element.setAttribute("aria-grabbed", "false");
+      if (this.feedbackElement) {
+        this.feedbackElement.classList.add("hidden");
+      }
+      const data = this.currentDrag?.data || this.getData(element);
+      const initialPos = this.currentDrag?.initialPosition || { x: 0, y: 0 };
+      element.dispatchEvent(new CustomEvent("draggable:end", {
+        bubbles: true,
+        detail: {
+          element,
+          data,
+          position: { x: e.clientX, y: e.clientY },
+          delta: {
+            x: e.clientX - initialPos.x,
+            y: e.clientY - initialPos.y
+          }
+        }
+      }));
+      this.currentDrag = null;
+    },
+    /**
+     * Handle touch start event (for mobile)
+     * @param {TouchEvent} e - Touch event
+     * @param {HTMLElement} element - Draggable element
+     */
+    handleTouchStart: function(e, element) {
+      const touch = e.touches[0];
+      this.touchState = {
+        element,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        startTime: Date.now(),
+        isDragging: false
+      };
+    },
+    /**
+     * Handle touch move event (for mobile)
+     * @param {TouchEvent} e - Touch event
+     * @param {HTMLElement} element - Draggable element
+     */
+    handleTouchMove: function(e, element) {
+      if (!this.touchState) return;
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - this.touchState.startX;
+      const deltaY = touch.clientY - this.touchState.startY;
+      if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+        if (e.cancelable) e.preventDefault();
+        if (!this.touchState.isDragging) {
+          this.touchState.isDragging = true;
+          element.classList.add("is-dragging");
+          element.setAttribute("aria-grabbed", "true");
+          this.currentDrag = {
+            element,
+            initialPosition: { x: this.touchState.startX, y: this.touchState.startY },
+            initialBounds: element.getBoundingClientRect(),
+            data: this.getData(element)
+          };
+          element.dispatchEvent(new CustomEvent("draggable:start", {
+            bubbles: true,
+            detail: {
+              element,
+              data: this.currentDrag.data,
+              position: { x: touch.clientX, y: touch.clientY }
+            }
+          }));
+        }
+        this.updateFeedback(touch.clientX, touch.clientY);
+        if (this.currentDrag) {
+          element.dispatchEvent(new CustomEvent("draggable:drag", {
+            bubbles: true,
+            detail: {
+              element,
+              data: this.currentDrag.data,
+              position: { x: touch.clientX, y: touch.clientY },
+              delta: { x: deltaX, y: deltaY }
+            }
+          }));
+          const container = element.closest(".vd-draggable-container");
+          if (container && container.contains(element)) {
+            this.handleReorder(container, element, touch.clientX, touch.clientY);
+          }
+        }
+      }
+    },
+    /**
+     * Handle touch end event (for mobile)
+     * @param {TouchEvent} e - Touch event
+     * @param {HTMLElement} element - Draggable element
+     */
+    handleTouchEnd: function(e, element) {
+      if (this.touchState && this.touchState.isDragging) {
+        if (e.cancelable) e.preventDefault();
+        element.classList.remove("is-dragging");
+        element.classList.add("is-dropped");
+        element.setAttribute("aria-grabbed", "false");
+        setTimeout(() => element.classList.remove("is-dropped"), 300);
+        if (this.feedbackElement) {
+          this.feedbackElement.classList.add("hidden");
+        }
+        const endTouch = e.changedTouches[0];
+        const data = this.currentDrag?.data || this.getData(element);
+        const startX = this.touchState?.startX || 0;
+        const startY = this.touchState?.startY || 0;
+        element.dispatchEvent(new CustomEvent("draggable:end", {
+          bubbles: true,
+          detail: {
+            element,
+            data,
+            position: { x: endTouch.clientX, y: endTouch.clientY },
+            delta: {
+              x: endTouch.clientX - startX,
+              y: endTouch.clientY - startY
+            }
+          }
+        }));
+      }
+      this.touchState = null;
+      this.currentDrag = null;
+    },
+    /**
+     * Handle drag over event
+     * @param {DragEvent} e - Drag event
+     * @param {HTMLElement} _zone - Drop zone element
+     */
+    handleDragOver: function(e, _zone) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+    },
+    /**
+     * Handle drag enter event
+     * @param {DragEvent} e - Drag event
+     * @param {HTMLElement} zone - Drop zone element
+     */
+    handleDragEnter: function(e, zone) {
+      e.preventDefault();
+      zone.classList.add("is-drag-over");
+    },
+    /**
+     * Handle drag leave event
+     * @param {DragEvent} e - Drag event
+     * @param {HTMLElement} zone - Drop zone element
+     */
+    handleDragLeave: function(e, zone) {
+      zone.classList.remove("is-drag-over");
+    },
+    /**
+     * Handle drop event
+     * @param {DragEvent} e - Drag event
+     * @param {HTMLElement} zone - Drop zone element
+     */
+    handleDrop: function(e, zone) {
+      e.preventDefault();
+      zone.classList.remove("is-drag-over");
+      zone.dispatchEvent(new CustomEvent("draggable:drop", {
+        bubbles: true,
+        detail: {
+          zone,
+          element: this.currentDrag?.element,
+          data: this.currentDrag?.data,
+          position: { x: e.clientX, y: e.clientY }
+        }
+      }));
+    },
+    /**
+     * Reorder elements in container based on cursor position
+     * @param {HTMLElement} container 
+     * @param {HTMLElement} element 
+     * @param {number} clientX 
+     * @param {number} clientY 
+     */
+    handleReorder: function(container, element, clientX, clientY) {
+      const isVertical = container.classList.contains("vd-draggable-container-vertical");
+      const siblings = [...container.querySelectorAll(".vd-draggable-item:not(.is-dragging), .vd-draggable:not(.is-dragging)")];
+      const nextSibling = siblings.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = isVertical ? clientY - box.top - box.height / 2 : clientX - box.left - box.width / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+      if (nextSibling == null) {
+        container.appendChild(element);
+      } else {
+        container.insertBefore(element, nextSibling);
+      }
+    },
+    /**
+     * Handle keyboard events
+     * @param {KeyboardEvent} e - Keyboard event
+     * @param {HTMLElement} element - Draggable element
+     */
+    handleKeydown: function(e, element) {
+      switch (e.key) {
+        case "Enter":
+        case " ":
+          e.preventDefault();
+          element.click();
+          break;
+        case "Escape":
+          if (element.classList.contains("is-dragging")) {
+            element.classList.remove("is-dragging");
+            element.setAttribute("aria-grabbed", "false");
+            if (this.feedbackElement) {
+              this.feedbackElement.classList.add("hidden");
+            }
+            this.currentDrag = null;
+          }
+          break;
+        case "ArrowUp":
+        case "ArrowLeft": {
+          e.preventDefault();
+          const prev = element.previousElementSibling;
+          if (prev && (prev.classList.contains("vd-draggable") || prev.classList.contains("vd-draggable-item"))) {
+            element.parentNode.insertBefore(element, prev);
+            element.focus();
+            element.dispatchEvent(new CustomEvent("draggable:reorder", {
+              bubbles: true,
+              detail: { element, direction: "up" }
+            }));
+          }
+          break;
+        }
+        case "ArrowDown":
+        case "ArrowRight": {
+          e.preventDefault();
+          const next = element.nextElementSibling;
+          if (next && (next.classList.contains("vd-draggable") || next.classList.contains("vd-draggable-item"))) {
+            element.parentNode.insertBefore(next, element);
+            element.focus();
+            element.dispatchEvent(new CustomEvent("draggable:reorder", {
+              bubbles: true,
+              detail: { element, direction: "down" }
+            }));
+          }
+          break;
+        }
+      }
+    },
+    /**
+     * Get data from draggable element
+     * @param {HTMLElement} element - Draggable element
+     * @returns {string} Data associated with the element
+     */
+    getData: function(element) {
+      return element.dataset.draggable || element.textContent.trim();
+    },
+    /**
+     * Update drag feedback element
+     * @param {number} x - Current X coordinate
+     * @param {number} y - Current Y coordinate
+     */
+    updateFeedback: function(x, y) {
+      if (!this.currentDrag) return;
+      this.feedbackElement.classList.remove("hidden");
+      const rect = this.currentDrag.initialBounds;
+      this.feedbackElement.innerHTML = "";
+      const clone = this.currentDrag.element.cloneNode(true);
+      this.feedbackElement.appendChild(clone);
+      Object.assign(this.feedbackElement.style, {
+        left: x - 20 + "px",
+        top: y - 20 + "px",
+        width: rect.width + "px",
+        height: rect.height + "px"
+      });
+    },
+    /**
+     * Make an element draggable programmatically
+     * @param {HTMLElement|string} element - Element or selector
+     * @param {Object} options - Configuration options
+     */
+    makeDraggable: function(element, options = {}) {
+      const el = typeof element === "string" ? document.querySelector(element) : element;
+      if (el && !this.instances.has(el)) {
+        el.classList.add("vd-draggable");
+        el.setAttribute("draggable", "true");
+        if (options.data) {
+          el.dataset.draggable = options.data;
+        }
+        this.initDraggable(el);
+      }
+    },
+    /**
+     * Remove draggable functionality from an element
+     * @param {HTMLElement|string} element - Element or selector
+     */
+    removeDraggable: function(element) {
+      const el = typeof element === "string" ? document.querySelector(element) : element;
+      if (el && this.instances.has(el)) {
+        const instance = this.instances.get(el);
+        instance.cleanup.forEach((fn) => fn());
+        this.instances.delete(el);
+        el.classList.remove("vd-draggable");
+        el.removeAttribute("draggable");
+        el.removeAttribute("data-draggable");
+      }
+    },
+    /**
+     * Destroy a draggable instance and clean up event listeners
+     * @param {HTMLElement} element - Draggable element
+     */
+    destroy: function(element) {
+      this.removeDraggable(element);
+    },
+    /**
+     * Destroy all draggable instances
+     */
+    destroyAll: function() {
+      const instances = Array.from(this.instances.keys());
+      instances.forEach((element) => this.destroy(element));
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("draggable", Draggable);
+  }
+  window.VanduoDraggable = Draggable;
+})();
+
+// js/components/lazy-load.js
+(function() {
+  "use strict";
+  const _observerMap = /* @__PURE__ */ new Map();
+  function _isSafeUrl(url) {
+    try {
+      const resolved = new URL(url, window.location.href);
+      return resolved.origin === window.location.origin;
+    } catch (_) {
+      return false;
+    }
+  }
+  function _safeInjectHtml(containerEl, html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html.trim(), "text/html");
+    const DANGEROUS_TAGS = ["SCRIPT", "IFRAME", "OBJECT", "EMBED", "FORM", "BASE", "LINK", "META", "STYLE"];
+    for (const tag of DANGEROUS_TAGS) {
+      const els = doc.querySelectorAll(tag);
+      for (let i = els.length - 1; i >= 0; i--) {
+        els[i].parentNode.removeChild(els[i]);
+      }
+    }
+    function _sanitizeNode(node) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const attrs = node.attributes;
+        for (let i = attrs.length - 1; i >= 0; i--) {
+          const attrName = attrs[i].name.toLowerCase();
+          const attrValue = attrs[i].value.toLowerCase();
+          const trimmedValue = attrValue.trim();
+          if (attrName.startsWith("on") || trimmedValue.startsWith("javascript:") || trimmedValue.startsWith("data:") || trimmedValue.startsWith("vbscript:")) {
+            node.removeAttribute(attrs[i].name);
+          }
+        }
+        const children = node.childNodes;
+        for (let i = 0; i < children.length; i++) {
+          _sanitizeNode(children[i]);
+        }
+      }
+    }
+    _sanitizeNode(doc.body);
+    const nodes = Array.from(doc.body.childNodes);
+    while (containerEl.firstChild) {
+      containerEl.removeChild(containerEl.firstChild);
+    }
+    nodes.forEach(function(node) {
+      containerEl.appendChild(document.adoptNode(node));
+    });
+  }
+  function _skeletonHtml() {
+    return '<div class="vd-skeleton-card" style="position:relative;min-height:200px;padding:2rem;overflow:hidden;"><div class="vd-skeleton vd-skeleton-heading-lg" style="margin-bottom:1.5rem;"></div><div class="vd-skeleton vd-skeleton-paragraph"><div class="vd-skeleton vd-skeleton-text"></div><div class="vd-skeleton vd-skeleton-text"></div><div class="vd-skeleton vd-skeleton-text"></div></div><div class="vd-dynamic-loader" style="position:absolute;inset:0;"><div class="vd-dynamic-loader-grid"><div class="vd-spinner vd-spinner-sm vd-spinner-success" style="animation-delay:0s;"></div><div class="vd-spinner vd-spinner-sm vd-spinner-warning" style="animation-delay:-0.15s;"></div><div class="vd-spinner vd-spinner-sm vd-spinner-error" style="animation-delay:-0.3s;"></div><div class="vd-spinner vd-spinner-sm vd-spinner-info" style="animation-delay:-0.45s;"></div></div><span class="vd-dynamic-loader-text">Loading\u2026</span></div></div>';
+  }
+  function _spinnerHtml() {
+    return '<div class="vd-dynamic-loader" style="min-height:180px;display:flex;align-items:center;justify-content:center;"><div class="vd-dynamic-loader-grid"><div class="vd-spinner vd-spinner-sm vd-spinner-success" style="animation-delay:0s;"></div><div class="vd-spinner vd-spinner-sm vd-spinner-warning" style="animation-delay:-0.15s;"></div><div class="vd-spinner vd-spinner-sm vd-spinner-error" style="animation-delay:-0.3s;"></div><div class="vd-spinner vd-spinner-sm vd-spinner-info" style="animation-delay:-0.45s;"></div></div><span class="vd-dynamic-loader-text">Loading\u2026</span></div>';
+  }
+  function _resolvePlaceholder(placeholder) {
+    if (!placeholder || placeholder === "skeleton") return _skeletonHtml();
+    if (placeholder === "spinner") return _spinnerHtml();
+    return placeholder;
+  }
+  function _dispatch(el, eventName, detail) {
+    el.dispatchEvent(new CustomEvent(eventName, { bubbles: true, detail: detail || {} }));
+  }
+  const VanduoLazyLoad = {
+    /* ─────────────────────────────────────────────────
+     * LOW-LEVEL API
+     * ───────────────────────────────────────────────── */
+    /**
+     * Observe an element. `callback` is invoked once when the element
+     * enters the viewport, then the element is automatically unobserved.
+     *
+     * @param {Element} element
+     * @param {function(Element): void} callback
+     * @param {{ threshold?: number, rootMargin?: string }} [options]
+     */
+    observe: function(element, callback, options) {
+      if (!(element instanceof Element)) {
+        console.warn("[VanduoLazyLoad] observe() requires a DOM Element.");
+        return;
+      }
+      if (typeof callback !== "function") {
+        console.warn("[VanduoLazyLoad] observe() requires a callback function.");
+        return;
+      }
+      if (_observerMap.has(element)) return;
+      const threshold = options && options.threshold != null ? options.threshold : 0;
+      const rootMargin = options && options.rootMargin ? options.rootMargin : "0px";
+      const observer = new IntersectionObserver(function(entries, obs) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            obs.unobserve(entry.target);
+            _observerMap.delete(entry.target);
+            try {
+              callback(entry.target);
+            } catch (e) {
+              console.error("[VanduoLazyLoad] Callback threw:", e);
+            }
+          }
+        });
+      }, { threshold, rootMargin });
+      _observerMap.set(element, observer);
+      observer.observe(element);
+    },
+    /**
+     * Stop observing an element that was previously passed to observe().
+     * @param {Element} element
+     */
+    unobserve: function(element) {
+      const observer = _observerMap.get(element);
+      if (observer) {
+        observer.unobserve(element);
+        _observerMap.delete(element);
+      }
+    },
+    /**
+     * Stop observing ALL currently observed elements.
+     */
+    unobserveAll: function() {
+      _observerMap.forEach(function(observer, element) {
+        observer.unobserve(element);
+      });
+      _observerMap.clear();
+    },
+    /* ─────────────────────────────────────────────────
+     * HIGH-LEVEL API
+     * ───────────────────────────────────────────────── */
+    /**
+     * Fetch an HTML partial and inject it into `containerEl` when the
+     * container enters the viewport. A placeholder is shown immediately.
+     *
+     * @param {string} url               URL of the HTML partial to fetch
+     * @param {Element} containerEl      Target element whose content will be replaced
+     * @param {{
+     *   placeholder?: 'skeleton'|'spinner'|string,
+     *   threshold?:   number,
+     *   rootMargin?:  string,
+     *   onLoaded?:    function(Element): void,
+     *   onError?:     function(Error): void
+     * }} [options]
+     */
+    loadSection: function(url, containerEl, options) {
+      if (typeof url !== "string" || !url) {
+        console.warn("[VanduoLazyLoad] loadSection() requires a non-empty URL string.");
+        return;
+      }
+      if (!(containerEl instanceof Element)) {
+        console.warn("[VanduoLazyLoad] loadSection() requires a DOM Element as containerEl.");
+        return;
+      }
+      if (!_isSafeUrl(url)) {
+        console.error("[VanduoLazyLoad] loadSection() blocked cross-origin URL:", url);
+        return;
+      }
+      const opts = options || {};
+      const placeholderHtml = _resolvePlaceholder(opts.placeholder);
+      _safeInjectHtml(containerEl, placeholderHtml);
+      _dispatch(containerEl, "lazysection:loading", { url });
+      this.observe(containerEl, function() {
+        const controller = new window.AbortController();
+        const timeoutId = setTimeout(function() {
+          controller.abort();
+        }, 1e4);
+        window.fetch(url, { signal: controller.signal }).then(function(res) {
+          clearTimeout(timeoutId);
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.text();
+        }).then(function(html) {
+          _safeInjectHtml(containerEl, html);
+          _dispatch(containerEl, "lazysection:loaded", { url });
+          if (typeof window.Vanduo !== "undefined") {
+            window.Vanduo.init();
+          }
+          if (typeof opts.onLoaded === "function") {
+            opts.onLoaded(containerEl);
+          }
+        }).catch(function(err) {
+          const alertEl = document.createElement("div");
+          alertEl.className = "vd-alert vd-alert-error";
+          alertEl.setAttribute("role", "alert");
+          const msgEl = document.createElement("span");
+          msgEl.textContent = "Failed to load content. ";
+          const detailEl = document.createElement("small");
+          detailEl.style.opacity = "0.7";
+          detailEl.textContent = err.message;
+          alertEl.appendChild(msgEl);
+          alertEl.appendChild(detailEl);
+          while (containerEl.firstChild) {
+            containerEl.removeChild(containerEl.firstChild);
+          }
+          containerEl.appendChild(alertEl);
+          _dispatch(containerEl, "lazysection:error", { url, error: err });
+          console.error("[VanduoLazyLoad] loadSection failed:", err);
+          if (typeof opts.onError === "function") {
+            opts.onError(err);
+          }
+        });
+      }, { threshold: opts.threshold, rootMargin: opts.rootMargin });
+    },
+    /* ─────────────────────────────────────────────────
+     * ATTRIBUTE-DRIVEN INIT
+     * ───────────────────────────────────────────────── */
+    /**
+     * Scan the DOM for [data-vd-lazy] elements and wire them up.
+     * Safe to call multiple times — already-observed elements are skipped.
+     */
+    init: function() {
+      const self = this;
+      const elements = document.querySelectorAll("[data-vd-lazy]");
+      elements.forEach(function(el) {
+        if (_observerMap.has(el) || el.dataset.vdLazyState === "loading" || el.dataset.vdLazyState === "loaded") return;
+        const url = el.getAttribute("data-vd-lazy");
+        if (!url) return;
+        el.dataset.vdLazyState = "loading";
+        const placeholder = el.getAttribute("data-vd-lazy-placeholder") || "skeleton";
+        self.loadSection(url, el, {
+          placeholder,
+          onLoaded: function() {
+            el.dataset.vdLazyState = "loaded";
+          },
+          onError: function() {
+            el.dataset.vdLazyState = "error";
+          }
+        });
+      });
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("LazyLoad", VanduoLazyLoad);
+  }
+  window.VanduoLazyLoad = VanduoLazyLoad;
+})();
+
+// js/components/flow.js
+(function() {
+  "use strict";
+  const Flow = {
+    instances: /* @__PURE__ */ new Map(),
+    init: function() {
+      const carousels = document.querySelectorAll(".vd-flow, .vd-carousel");
+      carousels.forEach((el) => {
+        if (this.instances.has(el)) return;
+        this.initInstance(el);
+      });
+    },
+    initInstance: function(el) {
+      const track = el.querySelector(".vd-flow-track");
+      if (!track) return;
+      const slides = Array.from(track.querySelectorAll(".vd-flow-slide"));
+      if (slides.length === 0) return;
+      const isFade = el.classList.contains("vd-flow-fade");
+      const autoplay = el.hasAttribute("data-vd-autoplay");
+      const interval = parseInt(el.getAttribute("data-vd-interval"), 10) || 5e3;
+      const loop = el.getAttribute("data-vd-loop") !== "false";
+      const state = {
+        current: 0,
+        total: slides.length,
+        autoplayTimer: null,
+        isFade,
+        loop,
+        isDragging: false,
+        startX: 0,
+        currentX: 0,
+        threshold: 50
+      };
+      const cleanup = [];
+      slides.forEach((slide, i) => {
+        slide.setAttribute("role", "group");
+        slide.setAttribute("aria-roledescription", "slide");
+        slide.setAttribute("aria-label", "Slide " + (i + 1) + " of " + slides.length);
+        if (i === 0) slide.classList.add("is-active");
+      });
+      el.setAttribute("role", "region");
+      el.setAttribute("aria-roledescription", "carousel");
+      if (!el.getAttribute("aria-label")) {
+        el.setAttribute("aria-label", "Carousel");
+      }
+      const liveRegion = document.createElement("div");
+      liveRegion.setAttribute("aria-live", "polite");
+      liveRegion.setAttribute("aria-atomic", "true");
+      liveRegion.className = "sr-only";
+      liveRegion.style.cssText = "position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);";
+      el.appendChild(liveRegion);
+      const goTo = (index, announce) => {
+        if (announce === void 0) announce = true;
+        let target = index;
+        if (state.loop) {
+          target = (index % state.total + state.total) % state.total;
+        } else {
+          target = Math.max(0, Math.min(index, state.total - 1));
+        }
+        const prev2 = state.current;
+        state.current = target;
+        if (state.isFade) {
+          slides.forEach((s, i) => {
+            s.classList.toggle("is-active", i === target);
+          });
+        } else {
+          track.style.transform = "translateX(-" + target * 100 + "%)";
+        }
+        const indicators2 = el.querySelectorAll(".vd-flow-indicator");
+        indicators2.forEach((ind, i) => {
+          ind.classList.toggle("is-active", i === target);
+          ind.setAttribute("aria-selected", i === target ? "true" : "false");
+        });
+        slides.forEach((s, i) => {
+          s.setAttribute("aria-hidden", i !== target ? "true" : "false");
+        });
+        if (announce) {
+          liveRegion.textContent = "Slide " + (target + 1) + " of " + state.total;
+        }
+        el.dispatchEvent(new CustomEvent("flow:change", {
+          detail: { current: target, previous: prev2, total: state.total }
+        }));
+      };
+      const next = () => goTo(state.current + 1);
+      const prev = () => goTo(state.current - 1);
+      const prevBtn = el.querySelector(".vd-flow-prev");
+      const nextBtn = el.querySelector(".vd-flow-next");
+      if (prevBtn) {
+        const h = () => prev();
+        prevBtn.addEventListener("click", h);
+        cleanup.push(() => prevBtn.removeEventListener("click", h));
+      }
+      if (nextBtn) {
+        const h = () => next();
+        nextBtn.addEventListener("click", h);
+        cleanup.push(() => nextBtn.removeEventListener("click", h));
+      }
+      const indicators = el.querySelectorAll(".vd-flow-indicator");
+      indicators.forEach((ind, i) => {
+        ind.setAttribute("role", "tab");
+        ind.setAttribute("aria-selected", i === 0 ? "true" : "false");
+        ind.setAttribute("aria-label", "Go to slide " + (i + 1));
+        const h = () => goTo(i);
+        ind.addEventListener("click", h);
+        cleanup.push(() => ind.removeEventListener("click", h));
+      });
+      const keyHandler = (e) => {
+        if (e.key === "ArrowLeft") {
+          prev();
+          e.preventDefault();
+        }
+        if (e.key === "ArrowRight") {
+          next();
+          e.preventDefault();
+        }
+      };
+      el.setAttribute("tabindex", "0");
+      el.addEventListener("keydown", keyHandler);
+      cleanup.push(() => el.removeEventListener("keydown", keyHandler));
+      const pointerDown = (e) => {
+        state.isDragging = true;
+        state.startX = e.clientX || e.touches && e.touches[0].clientX || 0;
+        state.currentX = state.startX;
+        el.classList.add("is-dragging");
+      };
+      const pointerMove = (e) => {
+        if (!state.isDragging) return;
+        state.currentX = e.clientX || e.touches && e.touches[0].clientX || 0;
+      };
+      const pointerUp = () => {
+        if (!state.isDragging) return;
+        state.isDragging = false;
+        el.classList.remove("is-dragging");
+        const diff = state.startX - state.currentX;
+        if (Math.abs(diff) > state.threshold) {
+          if (diff > 0) next();
+          else prev();
+        }
+      };
+      el.addEventListener("mousedown", pointerDown);
+      el.addEventListener("mousemove", pointerMove);
+      el.addEventListener("mouseup", pointerUp);
+      el.addEventListener("mouseleave", pointerUp);
+      el.addEventListener("touchstart", pointerDown, { passive: true });
+      el.addEventListener("touchmove", pointerMove, { passive: true });
+      el.addEventListener("touchend", pointerUp);
+      cleanup.push(
+        () => el.removeEventListener("mousedown", pointerDown),
+        () => el.removeEventListener("mousemove", pointerMove),
+        () => el.removeEventListener("mouseup", pointerUp),
+        () => el.removeEventListener("mouseleave", pointerUp),
+        () => el.removeEventListener("touchstart", pointerDown),
+        () => el.removeEventListener("touchmove", pointerMove),
+        () => el.removeEventListener("touchend", pointerUp)
+      );
+      const startAutoplay = () => {
+        stopAutoplay();
+        state.autoplayTimer = setInterval(next, interval);
+      };
+      const stopAutoplay = () => {
+        if (state.autoplayTimer) {
+          clearInterval(state.autoplayTimer);
+          state.autoplayTimer = null;
+        }
+      };
+      if (autoplay) {
+        startAutoplay();
+        const pauseHandler = () => stopAutoplay();
+        const resumeHandler = () => startAutoplay();
+        el.addEventListener("mouseenter", pauseHandler);
+        el.addEventListener("mouseleave", resumeHandler);
+        el.addEventListener("focusin", pauseHandler);
+        el.addEventListener("focusout", resumeHandler);
+        cleanup.push(
+          () => el.removeEventListener("mouseenter", pauseHandler),
+          () => el.removeEventListener("mouseleave", resumeHandler),
+          () => el.removeEventListener("focusin", pauseHandler),
+          () => el.removeEventListener("focusout", resumeHandler),
+          () => stopAutoplay()
+        );
+      }
+      goTo(0, false);
+      this.instances.set(el, {
+        cleanup,
+        goTo,
+        next,
+        prev,
+        getState: () => ({ ...state })
+      });
+    },
+    goTo: function(el, index) {
+      const instance = this.instances.get(el);
+      if (instance) instance.goTo(index);
+    },
+    next: function(el) {
+      const instance = this.instances.get(el);
+      if (instance) instance.next();
+    },
+    prev: function(el) {
+      const instance = this.instances.get(el);
+      if (instance) instance.prev();
+    },
+    destroy: function(el) {
+      const instance = this.instances.get(el);
+      if (!instance) return;
+      instance.cleanup.forEach((fn) => fn());
+      this.instances.delete(el);
+    },
+    destroyAll: function() {
+      this.instances.forEach((_, el) => this.destroy(el));
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("flow", Flow);
+  }
+  window.VanduoFlow = Flow;
+})();
+
+// js/components/bubble.js
+(function() {
+  "use strict";
+  const Bubble = {
+    instances: /* @__PURE__ */ new Map(),
+    _globalCleanups: [],
+    init: function() {
+      const triggers = document.querySelectorAll("[data-vd-bubble], [data-vd-popover]");
+      triggers.forEach((el) => {
+        if (this.instances.has(el)) return;
+        this.initInstance(el);
+      });
+      if (this._globalCleanups.length === 0) {
+        const outsideClick = (e) => {
+          this.instances.forEach((inst, trigger) => {
+            if (!inst.popover.contains(e.target) && !trigger.contains(e.target)) {
+              this.hide(trigger);
+            }
+          });
+        };
+        const escHandler = (e) => {
+          if (e.key === "Escape") {
+            this.instances.forEach((_, trigger) => this.hide(trigger));
+          }
+        };
+        document.addEventListener("click", outsideClick, true);
+        document.addEventListener("keydown", escHandler);
+        this._globalCleanups.push(
+          () => document.removeEventListener("click", outsideClick, true),
+          () => document.removeEventListener("keydown", escHandler)
+        );
+      }
+    },
+    initInstance: function(trigger) {
+      const cleanup = [];
+      const placement = trigger.getAttribute("data-vd-bubble-placement") || trigger.getAttribute("data-vd-popover-placement") || "bottom";
+      const popover = document.createElement("div");
+      popover.className = "vd-bubble-content";
+      popover.setAttribute("role", "dialog");
+      popover.setAttribute("aria-modal", "false");
+      popover.setAttribute("data-placement", placement);
+      const title = trigger.getAttribute("data-vd-bubble-title") || trigger.getAttribute("data-vd-popover-title");
+      const content = trigger.getAttribute("data-vd-bubble") || trigger.getAttribute("data-vd-popover") || "";
+      const htmlContent = trigger.getAttribute("data-vd-bubble-html") || trigger.getAttribute("data-vd-popover-html");
+      if (title) {
+        const header = document.createElement("div");
+        header.className = "vd-bubble-header";
+        const titleSpan = document.createElement("span");
+        titleSpan.textContent = title;
+        const closeBtn = document.createElement("button");
+        closeBtn.className = "vd-bubble-close";
+        closeBtn.setAttribute("aria-label", "Close");
+        closeBtn.innerHTML = "&times;";
+        header.appendChild(titleSpan);
+        header.appendChild(closeBtn);
+        popover.appendChild(header);
+        const closeHandler = (e) => {
+          e.stopPropagation();
+          this.hide(trigger);
+        };
+        closeBtn.addEventListener("click", closeHandler);
+        cleanup.push(() => closeBtn.removeEventListener("click", closeHandler));
+      }
+      const body = document.createElement("div");
+      body.className = "vd-bubble-body";
+      if (htmlContent) {
+        if (typeof sanitizeHtml === "function") {
+          body.innerHTML = sanitizeHtml(htmlContent);
+        } else {
+          body.textContent = htmlContent;
+        }
+      } else {
+        body.textContent = content;
+      }
+      popover.appendChild(body);
+      document.body.appendChild(popover);
+      const popId = "vd-bubble-" + Math.random().toString(36).slice(2, 9);
+      popover.id = popId;
+      trigger.setAttribute("aria-haspopup", "dialog");
+      trigger.setAttribute("aria-expanded", "false");
+      trigger.setAttribute("aria-controls", popId);
+      const toggleHandler = (e) => {
+        e.stopPropagation();
+        if (popover.classList.contains("is-visible")) {
+          this.hide(trigger);
+        } else {
+          this.hideAll();
+          this.show(trigger);
+        }
+      };
+      trigger.addEventListener("click", toggleHandler);
+      cleanup.push(() => trigger.removeEventListener("click", toggleHandler));
+      this.instances.set(trigger, { popover, cleanup, placement });
+    },
+    position: function(trigger, popover, placement) {
+      const rect = trigger.getBoundingClientRect();
+      const popRect = popover.getBoundingClientRect();
+      const gap = 10;
+      let top, left;
+      switch (placement) {
+        case "top":
+          top = rect.top - popRect.height - gap + window.scrollY;
+          left = rect.left + (rect.width - popRect.width) / 2 + window.scrollX;
+          break;
+        case "left":
+          top = rect.top + (rect.height - popRect.height) / 2 + window.scrollY;
+          left = rect.left - popRect.width - gap + window.scrollX;
+          break;
+        case "right":
+          top = rect.top + (rect.height - popRect.height) / 2 + window.scrollY;
+          left = rect.right + gap + window.scrollX;
+          break;
+        default:
+          top = rect.bottom + gap + window.scrollY;
+          left = rect.left + (rect.width - popRect.width) / 2 + window.scrollX;
+      }
+      left = Math.max(8, Math.min(left, window.innerWidth - popRect.width - 8));
+      top = Math.max(8, top);
+      popover.style.top = top + "px";
+      popover.style.left = left + "px";
+    },
+    show: function(trigger) {
+      const instance = this.instances.get(trigger);
+      if (!instance) return;
+      const { popover, placement } = instance;
+      popover.style.display = "block";
+      popover.classList.add("is-visible");
+      trigger.setAttribute("aria-expanded", "true");
+      requestAnimationFrame(() => {
+        this.position(trigger, popover, placement);
+      });
+      trigger.dispatchEvent(new CustomEvent("bubble:show", { bubbles: true }));
+    },
+    hide: function(trigger) {
+      const instance = this.instances.get(trigger);
+      if (!instance) return;
+      instance.popover.classList.remove("is-visible");
+      trigger.setAttribute("aria-expanded", "false");
+      trigger.dispatchEvent(new CustomEvent("bubble:hide", { bubbles: true }));
+    },
+    hideAll: function() {
+      this.instances.forEach((_, trigger) => this.hide(trigger));
+    },
+    destroy: function(trigger) {
+      const instance = this.instances.get(trigger);
+      if (!instance) return;
+      instance.cleanup.forEach((fn) => fn());
+      if (instance.popover.parentNode) {
+        instance.popover.parentNode.removeChild(instance.popover);
+      }
+      trigger.removeAttribute("aria-haspopup");
+      trigger.removeAttribute("aria-expanded");
+      trigger.removeAttribute("aria-controls");
+      this.instances.delete(trigger);
+    },
+    destroyAll: function() {
+      this.instances.forEach((_, trigger) => this.destroy(trigger));
+      this._globalCleanups.forEach((fn) => fn());
+      this._globalCleanups = [];
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("bubble", Bubble);
+  }
+  window.VanduoBubble = Bubble;
+})();
+
+// js/components/waypoint.js
+(function() {
+  "use strict";
+  const Waypoint = {
+    instances: /* @__PURE__ */ new Map(),
+    init: function() {
+      const navs = document.querySelectorAll("[data-vd-waypoint-nav], [data-vd-scrollspy-nav]");
+      navs.forEach((nav) => {
+        if (this.instances.has(nav)) return;
+        this.initInstance(nav);
+      });
+    },
+    initInstance: function(nav) {
+      const links = Array.from(nav.querySelectorAll('a[href^="#"]'));
+      if (links.length === 0) return;
+      const cleanup = [];
+      const offset = parseInt(nav.getAttribute("data-vd-waypoint-offset") || "80", 10);
+      const sections = [];
+      links.forEach((link) => {
+        const id = link.getAttribute("href").slice(1);
+        const section = document.getElementById(id);
+        if (section) {
+          section.setAttribute("data-vd-waypoint-section", "");
+          sections.push({ id, link, section });
+        }
+      });
+      if (sections.length === 0) return;
+      const activeSections = /* @__PURE__ */ new Set();
+      const setActive = (id) => {
+        links.forEach((l) => l.classList.remove("is-active"));
+        const target = links.find((l) => l.getAttribute("href") === "#" + id);
+        if (target) {
+          target.classList.add("is-active");
+          nav.dispatchEvent(new CustomEvent("waypoint:change", {
+            detail: { activeId: id, link: target }
+          }));
+        }
+      };
+      const rootMargin = "-" + offset + "px 0px -40% 0px";
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            activeSections.add(entry.target.id);
+          } else {
+            activeSections.delete(entry.target.id);
+          }
+        });
+        for (let i = 0; i < sections.length; i++) {
+          if (activeSections.has(sections[i].id)) {
+            setActive(sections[i].id);
+            return;
+          }
+        }
+      }, {
+        rootMargin,
+        threshold: 0
+      });
+      sections.forEach((s) => observer.observe(s.section));
+      links.forEach((link) => {
+        const clickHandler = (e) => {
+          e.preventDefault();
+          const id = link.getAttribute("href").slice(1);
+          const section = document.getElementById(id);
+          if (section) {
+            section.scrollIntoView({ behavior: "smooth" });
+            setActive(id);
+          }
+        };
+        link.addEventListener("click", clickHandler);
+        cleanup.push(() => link.removeEventListener("click", clickHandler));
+      });
+      cleanup.push(() => observer.disconnect());
+      this.instances.set(nav, { observer, cleanup, sections, setActive });
+    },
+    refresh: function(nav) {
+      this.destroy(nav);
+      this.initInstance(nav);
+    },
+    destroy: function(nav) {
+      const instance = this.instances.get(nav);
+      if (!instance) return;
+      instance.cleanup.forEach((fn) => fn());
+      this.instances.delete(nav);
+    },
+    destroyAll: function() {
+      this.instances.forEach((_, nav) => this.destroy(nav));
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("waypoint", Waypoint);
+  }
+  window.VanduoWaypoint = Waypoint;
+})();
+
+// js/components/ripple.js
+(function() {
+  "use strict";
+  const Ripple = {
+    instances: /* @__PURE__ */ new Map(),
+    init: function() {
+      const elements = document.querySelectorAll(".vd-ripple, [data-vd-ripple]");
+      elements.forEach((el) => {
+        if (this.instances.has(el)) return;
+        this.initInstance(el);
+      });
+    },
+    initInstance: function(el) {
+      const cleanup = [];
+      const createWave = (e) => {
+        const rect = el.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        const x = (e.clientX || e.touches && e.touches[0].clientX || rect.left + rect.width / 2) - rect.left - size / 2;
+        const y = (e.clientY || e.touches && e.touches[0].clientY || rect.top + rect.height / 2) - rect.top - size / 2;
+        const wave = document.createElement("span");
+        wave.className = "vd-ripple-wave";
+        wave.style.width = size + "px";
+        wave.style.height = size + "px";
+        wave.style.left = x + "px";
+        wave.style.top = y + "px";
+        el.appendChild(wave);
+        wave.addEventListener("animationend", () => {
+          if (wave.parentNode) wave.parentNode.removeChild(wave);
+        });
+      };
+      el.addEventListener("mousedown", createWave);
+      el.addEventListener("touchstart", createWave, { passive: true });
+      cleanup.push(
+        () => el.removeEventListener("mousedown", createWave),
+        () => el.removeEventListener("touchstart", createWave)
+      );
+      this.instances.set(el, { cleanup });
+    },
+    destroy: function(el) {
+      const instance = this.instances.get(el);
+      if (!instance) return;
+      instance.cleanup.forEach((fn) => fn());
+      el.querySelectorAll(".vd-ripple-wave").forEach((w) => w.remove());
+      this.instances.delete(el);
+    },
+    destroyAll: function() {
+      this.instances.forEach((_, el) => this.destroy(el));
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("ripple", Ripple);
+  }
+  window.VanduoRipple = Ripple;
+})();
+
+// js/components/affix.js
+(function() {
+  "use strict";
+  function isScrollable(element) {
+    if (!element || element === document.body) return false;
+    const style = window.getComputedStyle(element);
+    const overflowY = style.overflowY;
+    const overflowX = style.overflowX;
+    const canScrollY = /(auto|scroll|overlay)/.test(overflowY) && element.scrollHeight > element.clientHeight;
+    const canScrollX = /(auto|scroll|overlay)/.test(overflowX) && element.scrollWidth > element.clientWidth;
+    return canScrollY || canScrollX;
+  }
+  function getScrollParent(element) {
+    let parent = element.parentElement;
+    while (parent && parent !== document.body && parent !== document.documentElement) {
+      if (isScrollable(parent)) return parent;
+      parent = parent.parentElement;
+    }
+    return null;
+  }
+  const Affix = {
+    instances: /* @__PURE__ */ new Map(),
+    init: function() {
+      const elements = document.querySelectorAll(".vd-affix, .vd-sticky, [data-vd-affix]");
+      elements.forEach((el) => {
+        if (this.instances.has(el)) return;
+        this.initInstance(el);
+      });
+    },
+    initInstance: function(el) {
+      const cleanup = [];
+      const parsedOffset = parseInt(el.getAttribute("data-vd-affix-offset") || "0", 10);
+      const offset = Number.isNaN(parsedOffset) ? 0 : parsedOffset;
+      const scrollParent = getScrollParent(el);
+      let isStuck = false;
+      const sentinel = document.createElement("div");
+      sentinel.style.cssText = "display:block;height:1px;margin-bottom:-1px;visibility:hidden;pointer-events:none;";
+      el.parentNode.insertBefore(sentinel, el);
+      el.style.setProperty("--affix-top-offset", offset + "px");
+      function stick() {
+        if (isStuck) return;
+        isStuck = true;
+        el.classList.add("is-stuck");
+        el.dispatchEvent(new CustomEvent("affix:stuck", {
+          bubbles: true,
+          detail: {
+            offset,
+            root: scrollParent || window
+          }
+        }));
+      }
+      function unstick() {
+        if (!isStuck) return;
+        isStuck = false;
+        el.classList.remove("is-stuck");
+        el.dispatchEvent(new CustomEvent("affix:unstuck", {
+          bubbles: true,
+          detail: {
+            offset,
+            root: scrollParent || window
+          }
+        }));
+      }
+      const observer = new IntersectionObserver(function(entries) {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) {
+            stick();
+          } else {
+            unstick();
+          }
+        });
+      }, {
+        root: scrollParent,
+        rootMargin: "-" + offset + "px 0px 0px 0px",
+        threshold: 0
+      });
+      observer.observe(sentinel);
+      cleanup.push(
+        () => observer.disconnect(),
+        () => {
+          if (sentinel.parentNode) sentinel.parentNode.removeChild(sentinel);
+        },
+        () => {
+          el.classList.remove("is-stuck");
+          el.style.removeProperty("--affix-top-offset");
+        }
+      );
+      this.instances.set(el, { cleanup, observer, sentinel, scrollParent });
+    },
+    destroy: function(el) {
+      const instance = this.instances.get(el);
+      if (!instance) return;
+      instance.cleanup.forEach((fn) => fn());
+      el.classList.remove("is-stuck");
+      this.instances.delete(el);
+    },
+    destroyAll: function() {
+      this.instances.forEach((_, el) => this.destroy(el));
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("affix", Affix);
+  }
+  window.VanduoAffix = Affix;
+})();
+
+// js/components/suggest.js
+(function() {
+  "use strict";
+  function _escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  const Suggest = {
+    instances: /* @__PURE__ */ new Map(),
+    init: function() {
+      const inputs = document.querySelectorAll("[data-vd-suggest], [data-vd-autocomplete]");
+      inputs.forEach((el) => {
+        if (this.instances.has(el)) return;
+        this.initInstance(el);
+      });
+    },
+    initInstance: function(input) {
+      const cleanup = [];
+      const minChars = parseInt(input.getAttribute("data-vd-suggest-min-chars") || "1", 10);
+      const url = input.getAttribute("data-vd-suggest-url") || "";
+      const staticData = input.getAttribute("data-vd-suggest") || input.getAttribute("data-vd-autocomplete") || "";
+      let items = [];
+      try {
+        items = JSON.parse(staticData);
+      } catch (_e) {
+        items = staticData.split(",").map((s) => s.trim()).filter(Boolean);
+      }
+      let wrapper = input.closest(".vd-suggest-wrapper, .vd-autocomplete-wrapper");
+      if (!wrapper) {
+        wrapper = document.createElement("div");
+        wrapper.className = "vd-suggest-wrapper";
+        input.parentNode.insertBefore(wrapper, input);
+        wrapper.appendChild(input);
+      }
+      const list = document.createElement("ul");
+      list.className = "vd-suggest-list";
+      list.setAttribute("role", "listbox");
+      const listId = "vd-suggest-" + Math.random().toString(36).slice(2, 9);
+      list.id = listId;
+      wrapper.appendChild(list);
+      input.setAttribute("role", "combobox");
+      input.setAttribute("aria-autocomplete", "list");
+      input.setAttribute("aria-expanded", "false");
+      input.setAttribute("aria-controls", listId);
+      input.setAttribute("autocomplete", "off");
+      let highlighted = -1;
+      let currentItems = [];
+      let debounceTimer = null;
+      const renderItems = (filtered, query) => {
+        list.innerHTML = "";
+        currentItems = filtered;
+        highlighted = -1;
+        if (filtered.length === 0) {
+          const empty = document.createElement("li");
+          empty.className = "vd-suggest-empty";
+          empty.textContent = "No results";
+          list.appendChild(empty);
+          return;
+        }
+        filtered.forEach((item, i) => {
+          const li = document.createElement("li");
+          li.className = "vd-suggest-item";
+          li.setAttribute("role", "option");
+          li.id = listId + "-item-" + i;
+          const text = typeof item === "object" ? item.label || item.text || String(item) : String(item);
+          if (query) {
+            const escaped = _escapeHtml(text);
+            const re = new RegExp("(" + query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
+            li.innerHTML = escaped.replace(re, '<span class="vd-suggest-match">$1</span>');
+          } else {
+            li.textContent = text;
+          }
+          li.addEventListener("click", () => selectItem(i));
+          list.appendChild(li);
+        });
+      };
+      const open = () => {
+        list.classList.add("is-open");
+        input.setAttribute("aria-expanded", "true");
+      };
+      const close = () => {
+        list.classList.remove("is-open");
+        input.setAttribute("aria-expanded", "false");
+        highlighted = -1;
+        input.removeAttribute("aria-activedescendant");
+      };
+      const selectItem = (index) => {
+        const item = currentItems[index];
+        const value = typeof item === "object" ? item.value || item.label || String(item) : String(item);
+        input.value = value;
+        close();
+        input.dispatchEvent(new CustomEvent("suggest:select", {
+          detail: { value, item, index },
+          bubbles: true
+        }));
+      };
+      const highlight = (index) => {
+        const listItems = list.querySelectorAll(".vd-suggest-item");
+        listItems.forEach((li) => li.classList.remove("is-highlighted"));
+        if (index >= 0 && index < listItems.length) {
+          highlighted = index;
+          listItems[index].classList.add("is-highlighted");
+          input.setAttribute("aria-activedescendant", listItems[index].id);
+          listItems[index].scrollIntoView({ block: "nearest" });
+        }
+      };
+      const doSearch = async (query) => {
+        if (query.length < minChars) {
+          close();
+          return;
+        }
+        let filtered;
+        if (url) {
+          try {
+            const separator = url.includes("?") ? "&" : "?";
+            const res = await window.fetch(url + separator + "q=" + encodeURIComponent(query));
+            filtered = await res.json();
+          } catch (_e) {
+            filtered = [];
+          }
+        } else {
+          const lower = query.toLowerCase();
+          filtered = items.filter((item) => {
+            const text = typeof item === "object" ? item.label || item.text || String(item) : String(item);
+            return text.toLowerCase().includes(lower);
+          });
+        }
+        renderItems(filtered, query);
+        if (filtered.length > 0) open();
+        else open();
+      };
+      const inputHandler = () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => doSearch(input.value), 200);
+      };
+      const keyHandler = (e) => {
+        if (!list.classList.contains("is-open")) {
+          if (e.key === "ArrowDown") {
+            doSearch(input.value);
+            e.preventDefault();
+          }
+          return;
+        }
+        const total = currentItems.length;
+        switch (e.key) {
+          case "ArrowDown":
+            e.preventDefault();
+            highlight(highlighted < total - 1 ? highlighted + 1 : 0);
+            break;
+          case "ArrowUp":
+            e.preventDefault();
+            highlight(highlighted > 0 ? highlighted - 1 : total - 1);
+            break;
+          case "Enter":
+            e.preventDefault();
+            if (highlighted >= 0) selectItem(highlighted);
+            break;
+          case "Escape":
+            close();
+            break;
+        }
+      };
+      const blurHandler = () => {
+        setTimeout(close, 200);
+      };
+      input.addEventListener("input", inputHandler);
+      input.addEventListener("keydown", keyHandler);
+      input.addEventListener("blur", blurHandler);
+      input.addEventListener("focus", () => {
+        if (input.value.length >= minChars) doSearch(input.value);
+      });
+      cleanup.push(
+        () => input.removeEventListener("input", inputHandler),
+        () => input.removeEventListener("keydown", keyHandler),
+        () => input.removeEventListener("blur", blurHandler),
+        () => clearTimeout(debounceTimer),
+        () => {
+          if (list.parentNode) list.parentNode.removeChild(list);
+        }
+      );
+      this.instances.set(input, { cleanup, list, close });
+    },
+    destroy: function(el) {
+      const instance = this.instances.get(el);
+      if (!instance) return;
+      instance.cleanup.forEach((fn) => fn());
+      this.instances.delete(el);
+    },
+    destroyAll: function() {
+      this.instances.forEach((_, el) => this.destroy(el));
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("suggest", Suggest);
+  }
+  window.VanduoSuggest = Suggest;
+})();
+
+// js/components/validate.js
+(function() {
+  "use strict";
+  const Validate = {
+    instances: /* @__PURE__ */ new Map(),
+    rules: {
+      required: (value) => value.trim().length > 0,
+      email: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+      url: (value) => {
+        try {
+          new URL(value);
+          return true;
+        } catch (_e) {
+          return false;
+        }
+      },
+      number: (value) => !isNaN(parseFloat(value)) && isFinite(value),
+      min: (value, param) => value.length >= parseInt(param, 10),
+      max: (value, param) => value.length <= parseInt(param, 10),
+      minVal: (value, param) => parseFloat(value) >= parseFloat(param),
+      maxVal: (value, param) => parseFloat(value) <= parseFloat(param),
+      pattern: (value, param) => {
+        try {
+          if (param.length > 100) return false;
+          return new RegExp(param).test(value);
+        } catch (_e) {
+          return false;
+        }
+      },
+      match: (value, param) => {
+        try {
+          const escaped = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(param) : param;
+          const other = document.querySelector('[name="' + escaped + '"]');
+          return other ? value === other.value : false;
+        } catch (_e) {
+          return false;
+        }
+      }
+    },
+    messages: {
+      required: "This field is required",
+      email: "Please enter a valid email address",
+      url: "Please enter a valid URL",
+      number: "Please enter a valid number",
+      min: "Minimum {0} characters required",
+      max: "Maximum {0} characters allowed",
+      minVal: "Value must be at least {0}",
+      maxVal: "Value must be at most {0}",
+      pattern: "Invalid format",
+      match: "Fields do not match"
+    },
+    init: function() {
+      const forms = document.querySelectorAll("[data-vd-validate], .vd-validate");
+      forms.forEach((form) => {
+        if (this.instances.has(form)) return;
+        this.initInstance(form);
+      });
+    },
+    initInstance: function(form) {
+      const cleanup = [];
+      const mode = form.getAttribute("data-vd-validate-mode") || "blur";
+      const fields = form.querySelectorAll("[data-vd-rules]");
+      const validateField = (field) => {
+        const rulesStr = field.getAttribute("data-vd-rules") || "";
+        const rules = rulesStr.split("|").map((r) => r.trim()).filter(Boolean);
+        const value = field.value;
+        const errors = [];
+        for (const rule of rules) {
+          const [name, ...params] = rule.split(":");
+          const param = params.join(":");
+          const validator = this.rules[name];
+          if (validator && !validator(value, param)) {
+            const customMsg = field.getAttribute("data-vd-msg-" + name);
+            let msg = customMsg || this.messages[name] || "Invalid";
+            if (param) msg = msg.replace("{0}", param);
+            errors.push(msg);
+            break;
+          }
+        }
+        this.setFieldState(field, errors);
+        return errors.length === 0;
+      };
+      const validateAll = () => {
+        let valid = true;
+        fields.forEach((field) => {
+          if (!validateField(field)) valid = false;
+        });
+        return valid;
+      };
+      fields.forEach((field) => {
+        if (mode === "input" || mode === "blur") {
+          const eventType = mode === "input" ? "input" : "blur";
+          const handler = () => validateField(field);
+          field.addEventListener(eventType, handler);
+          cleanup.push(() => field.removeEventListener(eventType, handler));
+          if (mode === "blur") {
+            const inputClear = () => {
+              if (field.classList.contains("is-invalid") || field.classList.contains("is-valid")) {
+                validateField(field);
+              }
+            };
+            field.addEventListener("input", inputClear);
+            cleanup.push(() => field.removeEventListener("input", inputClear));
+          }
+        }
+      });
+      const submitHandler = (e) => {
+        const valid = validateAll();
+        if (!valid) {
+          e.preventDefault();
+          e.stopPropagation();
+          const firstInvalid = form.querySelector(".is-invalid");
+          if (firstInvalid) firstInvalid.focus();
+        }
+        form.dispatchEvent(new CustomEvent("validate:submit", {
+          detail: { valid },
+          bubbles: true
+        }));
+      };
+      form.addEventListener("submit", submitHandler);
+      cleanup.push(() => form.removeEventListener("submit", submitHandler));
+      this.instances.set(form, { cleanup, validateAll, validateField });
+    },
+    setFieldState: function(field, errors) {
+      const wrapper = field.closest(".vd-form-group") || field.parentElement;
+      let errorEl = wrapper.querySelector(".vd-validate-error");
+      field.classList.remove("is-valid", "is-invalid");
+      if (errors.length > 0) {
+        field.classList.add("is-invalid");
+        field.setAttribute("aria-invalid", "true");
+        if (!errorEl) {
+          errorEl = document.createElement("div");
+          errorEl.className = "vd-validate-error";
+          errorEl.id = "vd-err-" + Math.random().toString(36).slice(2, 9);
+          errorEl.setAttribute("role", "alert");
+          wrapper.appendChild(errorEl);
+        }
+        errorEl.textContent = errors[0];
+        errorEl.style.display = "";
+        field.setAttribute("aria-describedby", errorEl.id);
+      } else if (field.value.trim()) {
+        field.classList.add("is-valid");
+        field.removeAttribute("aria-invalid");
+        if (errorEl) errorEl.style.display = "none";
+      } else {
+        field.removeAttribute("aria-invalid");
+        if (errorEl) errorEl.style.display = "none";
+      }
+    },
+    validateForm: function(form) {
+      const instance = this.instances.get(form);
+      return instance ? instance.validateAll() : false;
+    },
+    addRule: function(name, validator, message) {
+      this.rules[name] = validator;
+      if (message) this.messages[name] = message;
+    },
+    destroy: function(form) {
+      const instance = this.instances.get(form);
+      if (!instance) return;
+      instance.cleanup.forEach((fn) => fn());
+      this.instances.delete(form);
+    },
+    destroyAll: function() {
+      this.instances.forEach((_, form) => this.destroy(form));
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("validate", Validate);
+  }
+  window.VanduoValidate = Validate;
+})();
+
+// js/components/datepicker.js
+(function() {
+  "use strict";
+  const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const Datepicker = {
+    instances: /* @__PURE__ */ new Map(),
+    init: function() {
+      const inputs = document.querySelectorAll("[data-vd-datepicker]");
+      inputs.forEach((el) => {
+        if (this.instances.has(el)) return;
+        this.initInstance(el);
+      });
+    },
+    initInstance: function(input) {
+      const cleanup = [];
+      const format = input.getAttribute("data-vd-datepicker-format") || "yyyy-mm-dd";
+      const minStr = input.getAttribute("data-vd-datepicker-min");
+      const maxStr = input.getAttribute("data-vd-datepicker-max");
+      const minDate = minStr ? new Date(minStr) : null;
+      const maxDate = maxStr ? new Date(maxStr) : null;
+      const today = /* @__PURE__ */ new Date();
+      let viewYear = today.getFullYear();
+      let viewMonth = today.getMonth();
+      let selectedDate = null;
+      let viewMode = "days";
+      if (input.value) {
+        const parsed = new Date(input.value);
+        if (!isNaN(parsed.getTime())) {
+          selectedDate = parsed;
+          viewYear = parsed.getFullYear();
+          viewMonth = parsed.getMonth();
+        }
+      }
+      const popup = document.createElement("div");
+      popup.className = "vd-datepicker-popup";
+      popup.setAttribute("role", "dialog");
+      popup.setAttribute("aria-label", "Choose date");
+      const wrapper = document.createElement("div");
+      wrapper.className = "vd-suggest-wrapper";
+      wrapper.style.position = "relative";
+      wrapper.style.display = "inline-block";
+      input.parentNode.insertBefore(wrapper, input);
+      wrapper.appendChild(input);
+      wrapper.appendChild(popup);
+      const formatDate = (d) => {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        return format.replace("yyyy", yyyy).replace("mm", mm).replace("dd", dd);
+      };
+      const isDisabled = (d) => {
+        if (minDate && d < minDate) return true;
+        if (maxDate && d > maxDate) return true;
+        return false;
+      };
+      const isSameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+      const render = () => {
+        popup.innerHTML = "";
+        const header = document.createElement("div");
+        header.className = "vd-datepicker-header";
+        const prevBtn = document.createElement("button");
+        prevBtn.type = "button";
+        prevBtn.className = "vd-datepicker-prev";
+        prevBtn.innerHTML = "&#8249;";
+        prevBtn.setAttribute("aria-label", "Previous");
+        const nextBtn = document.createElement("button");
+        nextBtn.type = "button";
+        nextBtn.className = "vd-datepicker-next";
+        nextBtn.innerHTML = "&#8250;";
+        nextBtn.setAttribute("aria-label", "Next");
+        const title = document.createElement("span");
+        title.className = "vd-datepicker-title";
+        if (viewMode === "days") {
+          title.textContent = MONTHS[viewMonth] + " " + viewYear;
+          title.addEventListener("click", () => {
+            viewMode = "months";
+            render();
+          });
+          prevBtn.addEventListener("click", () => {
+            viewMonth--;
+            if (viewMonth < 0) {
+              viewMonth = 11;
+              viewYear--;
+            }
+            render();
+          });
+          nextBtn.addEventListener("click", () => {
+            viewMonth++;
+            if (viewMonth > 11) {
+              viewMonth = 0;
+              viewYear++;
+            }
+            render();
+          });
+        } else if (viewMode === "months") {
+          title.textContent = String(viewYear);
+          title.addEventListener("click", () => {
+            viewMode = "years";
+            render();
+          });
+          prevBtn.addEventListener("click", () => {
+            viewYear--;
+            render();
+          });
+          nextBtn.addEventListener("click", () => {
+            viewYear++;
+            render();
+          });
+        } else {
+          const decadeStart = Math.floor(viewYear / 10) * 10;
+          title.textContent = decadeStart + " - " + (decadeStart + 9);
+          prevBtn.addEventListener("click", () => {
+            viewYear -= 10;
+            render();
+          });
+          nextBtn.addEventListener("click", () => {
+            viewYear += 10;
+            render();
+          });
+        }
+        header.appendChild(prevBtn);
+        header.appendChild(title);
+        header.appendChild(nextBtn);
+        popup.appendChild(header);
+        if (viewMode === "days") {
+          const weekdays = document.createElement("div");
+          weekdays.className = "vd-datepicker-weekdays";
+          DAYS.forEach((d) => {
+            const span = document.createElement("span");
+            span.textContent = d;
+            weekdays.appendChild(span);
+          });
+          popup.appendChild(weekdays);
+          const grid = document.createElement("div");
+          grid.className = "vd-datepicker-days";
+          const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+          const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+          const daysInPrev = new Date(viewYear, viewMonth, 0).getDate();
+          for (let i = firstDay - 1; i >= 0; i--) {
+            const btn = createDayBtn(daysInPrev - i, true);
+            grid.appendChild(btn);
+          }
+          for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(viewYear, viewMonth, d);
+            const btn = createDayBtn(d, false, date);
+            grid.appendChild(btn);
+          }
+          const totalCells = firstDay + daysInMonth;
+          const remaining = totalCells % 7 === 0 ? 0 : 7 - totalCells % 7;
+          for (let i = 1; i <= remaining; i++) {
+            const btn = createDayBtn(i, true);
+            grid.appendChild(btn);
+          }
+          popup.appendChild(grid);
+        } else if (viewMode === "months") {
+          const grid = document.createElement("div");
+          grid.className = "vd-datepicker-months";
+          MONTHS.forEach((name, i) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "vd-datepicker-month-btn";
+            btn.textContent = name.slice(0, 3);
+            if (selectedDate && selectedDate.getFullYear() === viewYear && selectedDate.getMonth() === i) {
+              btn.classList.add("is-selected");
+            }
+            btn.addEventListener("click", () => {
+              viewMonth = i;
+              viewMode = "days";
+              render();
+            });
+            grid.appendChild(btn);
+          });
+          popup.appendChild(grid);
+        } else {
+          const grid = document.createElement("div");
+          grid.className = "vd-datepicker-years";
+          const decadeStart = Math.floor(viewYear / 10) * 10;
+          for (let y = decadeStart - 1; y <= decadeStart + 10; y++) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "vd-datepicker-year-btn";
+            btn.textContent = y;
+            if (selectedDate && selectedDate.getFullYear() === y) btn.classList.add("is-selected");
+            if (y < decadeStart || y > decadeStart + 9) btn.style.opacity = "0.4";
+            btn.addEventListener("click", () => {
+              viewYear = y;
+              viewMode = "months";
+              render();
+            });
+            grid.appendChild(btn);
+          }
+          popup.appendChild(grid);
+        }
+      };
+      const createDayBtn = (day, outside, date) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "vd-datepicker-day";
+        btn.textContent = day;
+        if (outside) {
+          btn.classList.add("is-outside");
+          btn.tabIndex = -1;
+          return btn;
+        }
+        if (date && isSameDay(date, today)) btn.classList.add("is-today");
+        if (date && isSameDay(date, selectedDate)) btn.classList.add("is-selected");
+        if (date && isDisabled(date)) {
+          btn.classList.add("is-disabled");
+          return btn;
+        }
+        if (date) {
+          btn.addEventListener("click", () => {
+            selectedDate = date;
+            viewYear = date.getFullYear();
+            viewMonth = date.getMonth();
+            input.value = formatDate(date);
+            close();
+            input.dispatchEvent(new CustomEvent("datepicker:select", {
+              detail: { date, formatted: input.value },
+              bubbles: true
+            }));
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+          });
+        }
+        return btn;
+      };
+      const open = () => {
+        render();
+        popup.classList.add("is-open");
+        input.setAttribute("aria-expanded", "true");
+      };
+      const close = () => {
+        popup.classList.remove("is-open");
+        input.setAttribute("aria-expanded", "false");
+        viewMode = "days";
+      };
+      const focusHandler = () => open();
+      const outsideHandler = (e) => {
+        if (!wrapper.contains(e.target)) close();
+      };
+      const escHandler = (e) => {
+        if (e.key === "Escape") close();
+      };
+      input.addEventListener("focus", focusHandler);
+      document.addEventListener("click", outsideHandler, true);
+      document.addEventListener("keydown", escHandler);
+      input.setAttribute("aria-haspopup", "dialog");
+      input.setAttribute("aria-expanded", "false");
+      input.setAttribute("autocomplete", "off");
+      cleanup.push(
+        () => input.removeEventListener("focus", focusHandler),
+        () => document.removeEventListener("click", outsideHandler, true),
+        () => document.removeEventListener("keydown", escHandler)
+      );
+      this.instances.set(input, { cleanup, open, close, popup });
+    },
+    destroy: function(el) {
+      const instance = this.instances.get(el);
+      if (!instance) return;
+      instance.cleanup.forEach((fn) => fn());
+      this.instances.delete(el);
+    },
+    destroyAll: function() {
+      this.instances.forEach((_, el) => this.destroy(el));
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("datepicker", Datepicker);
+  }
+  window.VanduoDatepicker = Datepicker;
+})();
+
+// js/components/timepicker.js
+(function() {
+  "use strict";
+  const Timepicker = {
+    instances: /* @__PURE__ */ new Map(),
+    init: function() {
+      const inputs = document.querySelectorAll("[data-vd-timepicker]");
+      inputs.forEach((el) => {
+        if (this.instances.has(el)) return;
+        this.initInstance(el);
+      });
+    },
+    initInstance: function(input) {
+      const cleanup = [];
+      const is24h = input.getAttribute("data-vd-timepicker-format") === "24h";
+      const step = parseInt(input.getAttribute("data-vd-timepicker-step") || "30", 10);
+      let wrapper = input.closest(".vd-suggest-wrapper");
+      if (!wrapper) {
+        wrapper = document.createElement("div");
+        wrapper.style.position = "relative";
+        wrapper.style.display = "inline-block";
+        input.parentNode.insertBefore(wrapper, input);
+        wrapper.appendChild(input);
+      }
+      const popup = document.createElement("div");
+      popup.className = "vd-timepicker-popup";
+      popup.setAttribute("role", "listbox");
+      wrapper.appendChild(popup);
+      const times = [];
+      for (let h = 0; h < 24; h++) {
+        for (let m = 0; m < 60; m += step) {
+          const hh24 = String(h).padStart(2, "0");
+          const mm = String(m).padStart(2, "0");
+          if (is24h) {
+            times.push({ display: hh24 + ":" + mm, value: hh24 + ":" + mm });
+          } else {
+            const period = h < 12 ? "AM" : "PM";
+            const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+            const display = h12 + ":" + mm + " " + period;
+            times.push({ display, value: hh24 + ":" + mm });
+          }
+        }
+      }
+      const render = () => {
+        popup.innerHTML = "";
+        times.forEach((t) => {
+          const item = document.createElement("div");
+          item.className = "vd-timepicker-item";
+          item.setAttribute("role", "option");
+          item.textContent = t.display;
+          if (input.value === t.value || input.value === t.display) {
+            item.classList.add("is-selected");
+          }
+          item.addEventListener("click", () => {
+            input.value = t.display;
+            popup.querySelectorAll(".vd-timepicker-item").forEach((i) => i.classList.remove("is-selected"));
+            item.classList.add("is-selected");
+            close();
+            input.dispatchEvent(new CustomEvent("timepicker:select", {
+              detail: { display: t.display, value: t.value },
+              bubbles: true
+            }));
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+          });
+          popup.appendChild(item);
+        });
+      };
+      const open = () => {
+        render();
+        popup.classList.add("is-open");
+        input.setAttribute("aria-expanded", "true");
+        const selected = popup.querySelector(".is-selected");
+        if (selected) selected.scrollIntoView({ block: "center" });
+      };
+      const close = () => {
+        popup.classList.remove("is-open");
+        input.setAttribute("aria-expanded", "false");
+      };
+      const focusHandler = () => open();
+      const outsideHandler = (e) => {
+        if (!wrapper.contains(e.target)) close();
+      };
+      const escHandler = (e) => {
+        if (e.key === "Escape") close();
+      };
+      input.addEventListener("focus", focusHandler);
+      document.addEventListener("click", outsideHandler, true);
+      document.addEventListener("keydown", escHandler);
+      input.setAttribute("aria-haspopup", "listbox");
+      input.setAttribute("aria-expanded", "false");
+      input.setAttribute("autocomplete", "off");
+      input.readOnly = true;
+      cleanup.push(
+        () => input.removeEventListener("focus", focusHandler),
+        () => document.removeEventListener("click", outsideHandler, true),
+        () => document.removeEventListener("keydown", escHandler)
+      );
+      this.instances.set(input, { cleanup, open, close });
+    },
+    destroy: function(el) {
+      const instance = this.instances.get(el);
+      if (!instance) return;
+      instance.cleanup.forEach((fn) => fn());
+      this.instances.delete(el);
+    },
+    destroyAll: function() {
+      this.instances.forEach((_, el) => this.destroy(el));
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("timepicker", Timepicker);
+  }
+  window.VanduoTimepicker = Timepicker;
+})();
+
+// js/components/stepper.js
+(function() {
+  "use strict";
+  const Stepper = {
+    instances: /* @__PURE__ */ new Map(),
+    init: function() {
+      const steppers = document.querySelectorAll(".vd-stepper");
+      steppers.forEach((el) => {
+        if (this.instances.has(el)) return;
+        this.initInstance(el);
+      });
+    },
+    initInstance: function(el) {
+      const cleanup = [];
+      const items = Array.from(el.querySelectorAll(".vd-stepper-item"));
+      const isClickable = el.classList.contains("vd-stepper-clickable");
+      let currentIndex = items.findIndex((i) => i.classList.contains("is-active"));
+      if (currentIndex === -1) currentIndex = 0;
+      const setStep = (index) => {
+        if (index < 0 || index >= items.length) return;
+        const prev = currentIndex;
+        currentIndex = index;
+        items.forEach((item, i) => {
+          item.classList.remove("is-active", "is-completed");
+          if (i < index) item.classList.add("is-completed");
+          else if (i === index) item.classList.add("is-active");
+        });
+        el.dispatchEvent(new CustomEvent("stepper:change", {
+          detail: { current: index, previous: prev, total: items.length },
+          bubbles: true
+        }));
+      };
+      if (isClickable) {
+        items.forEach((item, i) => {
+          const handler = () => setStep(i);
+          item.addEventListener("click", handler);
+          cleanup.push(() => item.removeEventListener("click", handler));
+        });
+      }
+      setStep(currentIndex);
+      this.instances.set(el, {
+        cleanup,
+        setStep,
+        next: () => setStep(currentIndex + 1),
+        prev: () => setStep(currentIndex - 1),
+        getCurrent: () => currentIndex
+      });
+    },
+    setStep: function(el, index) {
+      const inst = this.instances.get(el);
+      if (inst) inst.setStep(index);
+    },
+    next: function(el) {
+      const inst = this.instances.get(el);
+      if (inst) inst.next();
+    },
+    prev: function(el) {
+      const inst = this.instances.get(el);
+      if (inst) inst.prev();
+    },
+    destroy: function(el) {
+      const inst = this.instances.get(el);
+      if (!inst) return;
+      inst.cleanup.forEach((fn) => fn());
+      this.instances.delete(el);
+    },
+    destroyAll: function() {
+      this.instances.forEach((_, el) => this.destroy(el));
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("stepper", Stepper);
+  }
+  window.VanduoStepper = Stepper;
+})();
+
+// js/components/rating.js
+(function() {
+  "use strict";
+  const Rating = {
+    instances: /* @__PURE__ */ new Map(),
+    init: function() {
+      const ratings = document.querySelectorAll("[data-vd-rating]");
+      ratings.forEach((el) => {
+        if (this.instances.has(el)) return;
+        this.initInstance(el);
+      });
+    },
+    initInstance: function(el) {
+      const cleanup = [];
+      const max = parseInt(el.getAttribute("data-vd-rating-max") || "5", 10);
+      const initialValue = parseFloat(el.getAttribute("data-vd-rating-value") || "0");
+      const readonly = el.classList.contains("vd-rating-readonly") || el.hasAttribute("data-vd-rating-readonly");
+      let currentValue = initialValue;
+      el.classList.add("vd-rating");
+      el.setAttribute("role", "radiogroup");
+      el.setAttribute("aria-label", el.getAttribute("aria-label") || "Rating");
+      el.innerHTML = "";
+      const stars = [];
+      for (let i = 1; i <= max; i++) {
+        const star = document.createElement("button");
+        star.type = "button";
+        star.className = "vd-rating-star";
+        star.setAttribute("role", "radio");
+        star.setAttribute("aria-label", i + " star" + (i > 1 ? "s" : ""));
+        star.setAttribute("aria-checked", i <= currentValue ? "true" : "false");
+        if (readonly) star.tabIndex = -1;
+        stars.push(star);
+        el.appendChild(star);
+      }
+      const valueDisplay = document.createElement("span");
+      valueDisplay.className = "vd-rating-value";
+      valueDisplay.textContent = currentValue > 0 ? currentValue.toString() : "";
+      el.appendChild(valueDisplay);
+      const updateStars = (value) => {
+        stars.forEach((star, i) => {
+          star.classList.remove("is-active", "is-half");
+          const starNum = i + 1;
+          if (starNum <= Math.floor(value)) {
+            star.classList.add("is-active");
+          } else if (starNum - 0.5 <= value) {
+            star.classList.add("is-half");
+          }
+          star.setAttribute("aria-checked", starNum <= value ? "true" : "false");
+        });
+        valueDisplay.textContent = value > 0 ? value.toString() : "";
+      };
+      updateStars(currentValue);
+      if (!readonly) {
+        stars.forEach((star, i) => {
+          const enterHandler = () => {
+            stars.forEach((s, j) => {
+              s.classList.toggle("is-hovered", j <= i);
+            });
+          };
+          const leaveHandler = () => {
+            stars.forEach((s) => s.classList.remove("is-hovered"));
+          };
+          const clickHandler = () => {
+            currentValue = i + 1;
+            el.setAttribute("data-vd-rating-value", currentValue);
+            updateStars(currentValue);
+            el.dispatchEvent(new CustomEvent("rating:change", {
+              detail: { value: currentValue, max },
+              bubbles: true
+            }));
+          };
+          star.addEventListener("mouseenter", enterHandler);
+          star.addEventListener("mouseleave", leaveHandler);
+          star.addEventListener("click", clickHandler);
+          cleanup.push(
+            () => star.removeEventListener("mouseenter", enterHandler),
+            () => star.removeEventListener("mouseleave", leaveHandler),
+            () => star.removeEventListener("click", clickHandler)
+          );
+        });
+        const keyHandler = (e) => {
+          if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+            e.preventDefault();
+            if (currentValue < max) {
+              currentValue++;
+              updateStars(currentValue);
+              stars[currentValue - 1].focus();
+              el.dispatchEvent(new CustomEvent("rating:change", { detail: { value: currentValue, max }, bubbles: true }));
+            }
+          } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+            e.preventDefault();
+            if (currentValue > 1) {
+              currentValue--;
+              updateStars(currentValue);
+              stars[currentValue - 1].focus();
+              el.dispatchEvent(new CustomEvent("rating:change", { detail: { value: currentValue, max }, bubbles: true }));
+            }
+          }
+        };
+        el.addEventListener("keydown", keyHandler);
+        cleanup.push(() => el.removeEventListener("keydown", keyHandler));
+      }
+      this.instances.set(el, {
+        cleanup,
+        getValue: () => currentValue,
+        setValue: (v) => {
+          currentValue = v;
+          updateStars(v);
+        }
+      });
+    },
+    getValue: function(el) {
+      const inst = this.instances.get(el);
+      return inst ? inst.getValue() : 0;
+    },
+    setValue: function(el, value) {
+      const inst = this.instances.get(el);
+      if (inst) inst.setValue(value);
+    },
+    destroy: function(el) {
+      const inst = this.instances.get(el);
+      if (!inst) return;
+      inst.cleanup.forEach((fn) => fn());
+      this.instances.delete(el);
+    },
+    destroyAll: function() {
+      this.instances.forEach((_, el) => this.destroy(el));
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("rating", Rating);
+  }
+  window.VanduoRating = Rating;
+})();
+
+// js/components/transfer.js
+(function() {
+  "use strict";
+  const Transfer = {
+    instances: /* @__PURE__ */ new Map(),
+    init: function() {
+      const transfers = document.querySelectorAll("[data-vd-transfer]");
+      transfers.forEach((el) => {
+        if (this.instances.has(el)) return;
+        this.initInstance(el);
+      });
+    },
+    initInstance: function(el) {
+      const cleanup = [];
+      el.classList.add("vd-transfer");
+      let sourceData, targetData;
+      try {
+        const raw = JSON.parse(el.getAttribute("data-vd-transfer") || "[]");
+        sourceData = raw.map((item, i) => ({
+          id: item.id || "item-" + i,
+          label: item.label || item.text || String(item),
+          selected: false
+        }));
+      } catch (_e) {
+        sourceData = [];
+      }
+      targetData = [];
+      const sourceSelected = /* @__PURE__ */ new Set();
+      const targetSelected = /* @__PURE__ */ new Set();
+      const render = () => {
+        el.innerHTML = "";
+        const sourcePanel = createPanel("Source", sourceData, sourceSelected, "source");
+        const actions = document.createElement("div");
+        actions.className = "vd-transfer-actions";
+        const moveRightBtn = document.createElement("button");
+        moveRightBtn.type = "button";
+        moveRightBtn.className = "vd-transfer-btn";
+        moveRightBtn.innerHTML = "&#8250;";
+        moveRightBtn.setAttribute("aria-label", "Move to target");
+        moveRightBtn.disabled = sourceSelected.size === 0;
+        moveRightBtn.addEventListener("click", () => moveRight());
+        const moveLeftBtn = document.createElement("button");
+        moveLeftBtn.type = "button";
+        moveLeftBtn.className = "vd-transfer-btn";
+        moveLeftBtn.innerHTML = "&#8249;";
+        moveLeftBtn.setAttribute("aria-label", "Move to source");
+        moveLeftBtn.disabled = targetSelected.size === 0;
+        moveLeftBtn.addEventListener("click", () => moveLeft());
+        actions.appendChild(moveRightBtn);
+        actions.appendChild(moveLeftBtn);
+        const targetPanel = createPanel("Target", targetData, targetSelected, "target");
+        el.appendChild(sourcePanel);
+        el.appendChild(actions);
+        el.appendChild(targetPanel);
+      };
+      const createPanel = (title, data, selected, _side) => {
+        const panel = document.createElement("div");
+        panel.className = "vd-transfer-panel";
+        const header = document.createElement("div");
+        header.className = "vd-transfer-header";
+        const titleSpan = document.createElement("span");
+        titleSpan.textContent = title;
+        const count = document.createElement("span");
+        count.className = "vd-transfer-count";
+        count.textContent = selected.size + "/" + data.length;
+        header.appendChild(titleSpan);
+        header.appendChild(count);
+        panel.appendChild(header);
+        const searchDiv = document.createElement("div");
+        searchDiv.className = "vd-transfer-search";
+        const searchInput = document.createElement("input");
+        searchInput.type = "text";
+        searchInput.placeholder = "Search...";
+        searchInput.setAttribute("aria-label", "Search " + title.toLowerCase());
+        searchDiv.appendChild(searchInput);
+        panel.appendChild(searchDiv);
+        const list = document.createElement("ul");
+        list.className = "vd-transfer-list";
+        list.setAttribute("role", "listbox");
+        const renderList = (filter) => {
+          list.innerHTML = "";
+          const filtered = filter ? data.filter((d) => {
+            const label = (d.label || d.text || String(d)).toLowerCase();
+            return label.includes(filter.toLowerCase());
+          }) : data;
+          filtered.forEach((item) => {
+            const li = document.createElement("li");
+            li.className = "vd-transfer-item";
+            li.setAttribute("role", "option");
+            if (selected.has(item.id)) li.classList.add("is-selected");
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = selected.has(item.id);
+            checkbox.setAttribute("aria-label", item.label);
+            const label = document.createElement("span");
+            label.textContent = item.label;
+            li.addEventListener("click", () => {
+              if (selected.has(item.id)) selected.delete(item.id);
+              else selected.add(item.id);
+              render();
+            });
+            li.appendChild(checkbox);
+            li.appendChild(label);
+            list.appendChild(li);
+          });
+        };
+        searchInput.addEventListener("input", () => renderList(searchInput.value));
+        renderList("");
+        panel.appendChild(list);
+        return panel;
+      };
+      const moveRight = () => {
+        const toMove = sourceData.filter((d) => sourceSelected.has(d.id));
+        sourceData = sourceData.filter((d) => !sourceSelected.has(d.id));
+        targetData = targetData.concat(toMove);
+        sourceSelected.clear();
+        render();
+        fireChange();
+      };
+      const moveLeft = () => {
+        const toMove = targetData.filter((d) => targetSelected.has(d.id));
+        targetData = targetData.filter((d) => !targetSelected.has(d.id));
+        sourceData = sourceData.concat(toMove);
+        targetSelected.clear();
+        render();
+        fireChange();
+      };
+      const fireChange = () => {
+        el.dispatchEvent(new CustomEvent("transfer:change", {
+          detail: {
+            source: sourceData.map((d) => d.id),
+            target: targetData.map((d) => d.id)
+          },
+          bubbles: true
+        }));
+      };
+      render();
+      this.instances.set(el, {
+        cleanup,
+        getTarget: () => targetData.map((d) => d.id),
+        getSource: () => sourceData.map((d) => d.id)
+      });
+    },
+    getSelected: function(el) {
+      const inst = this.instances.get(el);
+      return inst ? inst.getTarget() : [];
+    },
+    destroy: function(el) {
+      const inst = this.instances.get(el);
+      if (!inst) return;
+      inst.cleanup.forEach((fn) => fn());
+      el.innerHTML = "";
+      this.instances.delete(el);
+    },
+    destroyAll: function() {
+      this.instances.forEach((_, el) => this.destroy(el));
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("transfer", Transfer);
+  }
+  window.VanduoTransfer = Transfer;
+})();
+
+// js/components/tree.js
+(function() {
+  "use strict";
+  const Tree = {
+    instances: /* @__PURE__ */ new Map(),
+    init: function() {
+      const trees = document.querySelectorAll("[data-vd-tree]");
+      trees.forEach((el) => {
+        if (this.instances.has(el)) return;
+        this.initInstance(el);
+      });
+    },
+    initInstance: function(el) {
+      const cleanup = [];
+      const cascade = el.getAttribute("data-vd-tree-cascade") !== "false";
+      let data;
+      try {
+        data = JSON.parse(el.getAttribute("data-vd-tree") || "[]");
+      } catch (_e) {
+        data = [];
+      }
+      el.classList.add("vd-tree");
+      el.setAttribute("role", "tree");
+      const render = (items, parent) => {
+        parent.innerHTML = "";
+        items.forEach((item) => {
+          const node = document.createElement("li");
+          node.className = "vd-tree-node";
+          node.setAttribute("role", "treeitem");
+          node.setAttribute("aria-expanded", item.open ? "true" : "false");
+          if (item.open) node.classList.add("is-open");
+          const content = document.createElement("div");
+          content.className = "vd-tree-node-content";
+          if (item.children && item.children.length > 0) {
+            const toggle = document.createElement("button");
+            toggle.type = "button";
+            toggle.className = "vd-tree-toggle";
+            toggle.setAttribute("aria-label", "Toggle");
+            toggle.addEventListener("click", (e) => {
+              e.stopPropagation();
+              item.open = !item.open;
+              node.classList.toggle("is-open");
+              node.setAttribute("aria-expanded", item.open ? "true" : "false");
+            });
+            content.appendChild(toggle);
+          } else {
+            const ph = document.createElement("span");
+            ph.className = "vd-tree-toggle-placeholder";
+            content.appendChild(ph);
+          }
+          if (el.hasAttribute("data-vd-tree-checkbox")) {
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.className = "vd-tree-checkbox";
+            cb.checked = !!item.checked;
+            cb.setAttribute("aria-label", item.label);
+            cb.addEventListener("change", (e) => {
+              e.stopPropagation();
+              item.checked = cb.checked;
+              if (cascade && item.children) {
+                setChildChecked(item.children, cb.checked);
+                render(data, el);
+              }
+              el.dispatchEvent(new CustomEvent("tree:check", {
+                detail: { id: item.id, checked: cb.checked, label: item.label },
+                bubbles: true
+              }));
+            });
+            content.appendChild(cb);
+          }
+          if (item.icon) {
+            const icon = document.createElement("span");
+            icon.className = "vd-tree-icon " + item.icon;
+            content.appendChild(icon);
+          }
+          const label = document.createElement("span");
+          label.className = "vd-tree-label";
+          label.textContent = item.label || "";
+          content.appendChild(label);
+          node.appendChild(content);
+          if (item.children && item.children.length > 0) {
+            const childList = document.createElement("ul");
+            childList.className = "vd-tree-children";
+            childList.setAttribute("role", "group");
+            render(item.children, childList);
+            node.appendChild(childList);
+          }
+          parent.appendChild(node);
+        });
+      };
+      const setChildChecked = (items, checked) => {
+        items.forEach((item) => {
+          item.checked = checked;
+          if (item.children) setChildChecked(item.children, checked);
+        });
+      };
+      const keyHandler = (e) => {
+        const focused = document.activeElement;
+        if (!el.contains(focused)) return;
+        const nodes = Array.from(el.querySelectorAll(".vd-tree-node-content"));
+        const idx = nodes.indexOf(focused.closest(".vd-tree-node-content"));
+        if (idx === -1) return;
+        switch (e.key) {
+          case "ArrowDown":
+            e.preventDefault();
+            if (idx < nodes.length - 1) {
+              const next = nodes[idx + 1].querySelector(".vd-tree-toggle, .vd-tree-label");
+              if (next) next.focus();
+            }
+            break;
+          case "ArrowUp":
+            e.preventDefault();
+            if (idx > 0) {
+              const prev = nodes[idx - 1].querySelector(".vd-tree-toggle, .vd-tree-label");
+              if (prev) prev.focus();
+            }
+            break;
+        }
+      };
+      el.addEventListener("keydown", keyHandler);
+      cleanup.push(() => el.removeEventListener("keydown", keyHandler));
+      render(data, el);
+      this.instances.set(el, {
+        cleanup,
+        getData: () => data,
+        getChecked: () => {
+          const checked = [];
+          const collect = (items) => {
+            items.forEach((i) => {
+              if (i.checked) checked.push(i.id || i.label);
+              if (i.children) collect(i.children);
+            });
+          };
+          collect(data);
+          return checked;
+        }
+      });
+    },
+    getChecked: function(el) {
+      const inst = this.instances.get(el);
+      return inst ? inst.getChecked() : [];
+    },
+    destroy: function(el) {
+      const inst = this.instances.get(el);
+      if (!inst) return;
+      inst.cleanup.forEach((fn) => fn());
+      el.innerHTML = "";
+      this.instances.delete(el);
+    },
+    destroyAll: function() {
+      this.instances.forEach((_, el) => this.destroy(el));
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("tree", Tree);
+  }
+  window.VanduoTree = Tree;
+})();
+
+// js/components/spotlight.js
+(function() {
+  "use strict";
+  const Spotlight = {
+    _active: false,
+    _steps: [],
+    _currentStep: 0,
+    _elements: {},
+    _cleanup: [],
+    _boundTriggers: /* @__PURE__ */ new WeakMap(),
+    _triggerElement: null,
+    init: function() {
+      const triggers = document.querySelectorAll("[data-vd-spotlight]");
+      triggers.forEach((trigger) => {
+        if (this._boundTriggers.has(trigger)) return;
+        const clickHandler = (event) => {
+          event.preventDefault();
+          const steps = this._parseSteps(trigger.getAttribute("data-vd-spotlight"));
+          if (steps.length === 0) return;
+          this.start(steps, { trigger });
+        };
+        trigger.addEventListener("click", clickHandler);
+        this._boundTriggers.set(trigger, clickHandler);
+      });
+    },
+    _parseSteps: function(raw) {
+      if (typeof raw !== "string" || raw.trim() === "") return [];
+      try {
+        const parsed = JSON.parse(raw);
+        return this._normalizeSteps(parsed);
+      } catch (error) {
+        console.error("VanduoSpotlight: invalid data-vd-spotlight payload.", error);
+        return [];
+      }
+    },
+    _normalizeStep: function(step) {
+      if (!step || typeof step !== "object") return null;
+      const target = step.target;
+      const hasSelectorTarget = typeof target === "string" && target.trim() !== "";
+      const hasElementTarget = typeof Element !== "undefined" && target instanceof Element;
+      if (!hasSelectorTarget && !hasElementTarget) return null;
+      const title = typeof step.title === "string" ? step.title : "";
+      const description = typeof step.description === "string" ? step.description : typeof step.content === "string" ? step.content : "";
+      return {
+        target,
+        title,
+        description
+      };
+    },
+    _normalizeSteps: function(steps) {
+      if (!Array.isArray(steps)) return [];
+      return steps.map((step) => this._normalizeStep(step)).filter(Boolean);
+    },
+    start: function(steps, options) {
+      if (this._active) this.stop();
+      const normalizedSteps = this._normalizeSteps(steps);
+      if (normalizedSteps.length === 0) return;
+      const startOptions = options || {};
+      this._steps = normalizedSteps;
+      this._currentStep = 0;
+      this._active = true;
+      this._triggerElement = startOptions.trigger || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+      const overlay = document.createElement("div");
+      overlay.className = "vd-spotlight-overlay";
+      overlay.setAttribute("aria-hidden", "true");
+      document.body.appendChild(overlay);
+      const tooltip = document.createElement("div");
+      tooltip.className = "vd-spotlight-tooltip";
+      tooltip.setAttribute("role", "dialog");
+      tooltip.setAttribute("aria-modal", "true");
+      tooltip.tabIndex = -1;
+      document.body.appendChild(tooltip);
+      this._elements = { overlay, tooltip };
+      const escHandler = (e) => {
+        if (e.key === "Escape") this.stop();
+      };
+      document.addEventListener("keydown", escHandler);
+      this._cleanup.push(() => document.removeEventListener("keydown", escHandler));
+      overlay.addEventListener("click", () => this.stop());
+      this._showStep(this._currentStep);
+    },
+    _showStep: function(index) {
+      const step = this._steps[index];
+      if (!step) return;
+      const target = typeof step.target === "string" ? document.querySelector(step.target) : step.target;
+      const { tooltip } = this._elements;
+      document.querySelectorAll(".vd-spotlight-target").forEach((el) => {
+        el.classList.remove("vd-spotlight-target");
+      });
+      if (target) {
+        target.classList.add("vd-spotlight-target");
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      const total = this._steps.length;
+      tooltip.innerHTML = "";
+      tooltip.removeAttribute("aria-labelledby");
+      tooltip.removeAttribute("aria-describedby");
+      if (step.title) {
+        const title = document.createElement("h4");
+        title.className = "vd-spotlight-title";
+        title.id = "vd-spotlight-title-" + index + "-" + Date.now();
+        title.textContent = step.title;
+        tooltip.appendChild(title);
+        tooltip.setAttribute("aria-labelledby", title.id);
+      }
+      if (step.description) {
+        const desc = document.createElement("p");
+        desc.className = "vd-spotlight-description";
+        desc.id = "vd-spotlight-description-" + index + "-" + Date.now();
+        desc.textContent = step.description;
+        tooltip.appendChild(desc);
+        tooltip.setAttribute("aria-describedby", desc.id);
+      }
+      const footer = document.createElement("div");
+      footer.className = "vd-spotlight-footer";
+      footer.setAttribute("aria-label", "Step " + (index + 1) + " of " + total);
+      const counter = document.createElement("span");
+      counter.className = "vd-spotlight-counter";
+      counter.textContent = index + 1 + " / " + total;
+      const actions = document.createElement("div");
+      actions.className = "vd-spotlight-actions";
+      if (index > 0) {
+        const prevBtn = document.createElement("button");
+        prevBtn.type = "button";
+        prevBtn.className = "vd-spotlight-btn";
+        prevBtn.textContent = "Back";
+        prevBtn.addEventListener("click", () => this.prev());
+        actions.appendChild(prevBtn);
+      }
+      const skipBtn = document.createElement("button");
+      skipBtn.type = "button";
+      skipBtn.className = "vd-spotlight-btn";
+      skipBtn.textContent = "Skip";
+      skipBtn.addEventListener("click", () => this.stop());
+      actions.appendChild(skipBtn);
+      if (index < total - 1) {
+        const nextBtn = document.createElement("button");
+        nextBtn.type = "button";
+        nextBtn.className = "vd-spotlight-btn vd-spotlight-btn-primary";
+        nextBtn.textContent = "Next";
+        nextBtn.addEventListener("click", () => this.next());
+        actions.appendChild(nextBtn);
+      } else {
+        const doneBtn = document.createElement("button");
+        doneBtn.type = "button";
+        doneBtn.className = "vd-spotlight-btn vd-spotlight-btn-primary";
+        doneBtn.textContent = "Done";
+        doneBtn.addEventListener("click", () => this.stop());
+        actions.appendChild(doneBtn);
+      }
+      footer.appendChild(counter);
+      footer.appendChild(actions);
+      tooltip.appendChild(footer);
+      if (target) {
+        requestAnimationFrame(() => {
+          const rect = target.getBoundingClientRect();
+          const tRect = tooltip.getBoundingClientRect();
+          let top = rect.bottom + 12 + window.scrollY;
+          let left = rect.left + (rect.width - tRect.width) / 2 + window.scrollX;
+          left = Math.max(8, Math.min(left, window.innerWidth - tRect.width - 8));
+          if (top + tRect.height > window.innerHeight + window.scrollY) {
+            top = rect.top - tRect.height - 12 + window.scrollY;
+          }
+          tooltip.style.top = top + "px";
+          tooltip.style.left = left + "px";
+        });
+      }
+      document.dispatchEvent(new CustomEvent("spotlight:step", {
+        detail: { index, step: index, total, data: step }
+      }));
+    },
+    next: function() {
+      if (this._currentStep < this._steps.length - 1) {
+        this._currentStep++;
+        this._showStep(this._currentStep);
+      }
+    },
+    prev: function() {
+      if (this._currentStep > 0) {
+        this._currentStep--;
+        this._showStep(this._currentStep);
+      }
+    },
+    stop: function() {
+      if (!this._active) return;
+      const total = this._steps.length;
+      const detail = {
+        completedSteps: total === 0 ? 0 : Math.min(this._currentStep + 1, total),
+        total,
+        completed: total > 0 && this._currentStep >= total - 1
+      };
+      this._active = false;
+      document.querySelectorAll(".vd-spotlight-target").forEach((el) => {
+        el.classList.remove("vd-spotlight-target");
+      });
+      if (this._elements.overlay && this._elements.overlay.parentNode) {
+        this._elements.overlay.parentNode.removeChild(this._elements.overlay);
+      }
+      if (this._elements.tooltip && this._elements.tooltip.parentNode) {
+        this._elements.tooltip.parentNode.removeChild(this._elements.tooltip);
+      }
+      this._cleanup.forEach((fn) => fn());
+      this._cleanup = [];
+      this._elements = {};
+      this._steps = [];
+      this._currentStep = 0;
+      if (this._triggerElement && this._triggerElement.isConnected && typeof this._triggerElement.focus === "function") {
+        this._triggerElement.focus();
+      }
+      this._triggerElement = null;
+      document.dispatchEvent(new CustomEvent("spotlight:end", { detail }));
+    },
+    destroyAll: function() {
+      this.stop();
+    }
+  };
+  if (typeof window.Vanduo !== "undefined") {
+    window.Vanduo.register("spotlight", Spotlight);
+  }
+  window.VanduoSpotlight = Spotlight;
 })();
 
 // js/index.js

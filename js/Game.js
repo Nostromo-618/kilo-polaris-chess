@@ -94,6 +94,24 @@ export class Game {
   }
 
   /**
+   * Restore a game from previously serialized state (e.g. localStorage).
+   * @param {Object} serialized - return value of GameState.serialize()
+   * @param {{ difficulty?: number, onUpdate?: Function }} options
+   * @returns {Game}
+   */
+  static fromSaved(serialized, { difficulty, onUpdate } = {}) {
+    const instance = Object.create(Game.prototype);
+    instance.ai = new AI();
+    instance.onUpdate = onUpdate || (() => { });
+    instance.state = new GameState(serialized);
+    instance.setDifficulty(difficulty || serialized.difficulty || 3);
+    // Re-compute status text so UI shows correct message
+    instance.state.updateStatusText();
+    instance.notify();
+    return instance;
+  }
+
+  /**
    * Update AI difficulty.
    * @param {number} level 1..5
    */
@@ -132,6 +150,26 @@ export class Game {
    */
   isGameOver() {
     return this.state.isGameOver();
+  }
+
+  /**
+   * Whether undo is possible.
+   * @returns {boolean}
+   */
+  canUndo() {
+    return this.state.canUndo();
+  }
+
+  /**
+   * Undo the last two moves (player + computer).
+   * @returns {boolean} true if undo was successful
+   */
+  undo() {
+    const success = this.state.undoLastMove();
+    if (success) {
+      this.notify();
+    }
+    return success;
   }
 
   /**

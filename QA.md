@@ -122,3 +122,7 @@ For GitHub Actions (example):
 - [x] UI controls and theming
 - [x] Responsive mobile layout
 - [x] Engine logic (via browser context evaluation)
+- [x] Board coordinate labels
+- [x] Undo/take-back feature
+- [x] Thinking time persistence
+- [x] Zobrist hashing (transposition table performance)

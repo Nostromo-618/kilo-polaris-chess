@@ -9,6 +9,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Engine Logic - GameState', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('/');
+        await page.evaluate(() => {
+            localStorage.setItem('kpc-disclaimer-accepted', 'true');
+        });
+        await page.reload();
         await page.click('#new-game-btn');
         await page.waitForSelector('.chess-piece:has-text("♙")');
     });

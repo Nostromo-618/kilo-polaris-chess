@@ -8,7 +8,12 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Game Initialization', () => {
     test.beforeEach(async ({ page }) => {
+        // Accept disclaimer via localStorage before navigating
         await page.goto('/');
+        await page.evaluate(() => {
+            localStorage.setItem('kpc-disclaimer-accepted', 'true');
+        });
+        await page.reload();
     });
 
     test('should display the chess board with 64 squares', async ({ page }) => {

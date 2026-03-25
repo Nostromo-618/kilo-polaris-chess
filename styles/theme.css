@@ -1,18 +1,12 @@
 /**
- * Theme variables for Kilo Polaris Chess
- * Properly mapped to Vanduo Framework's color system
- * 
- * Vanduo uses Open Color palette: https://yeun.github.io/open-color/
- * Primary: Cyan (--primary-0 through --primary-9)
- * Gray: Neutral scale (--gray-0 through --gray-9)
+ * Theme variables and overrides for Kilo Polaris Chess
+ * Mapped to Vanduo Framework's CSS variable system
  */
 
 /* ============================================
-/* ============================================
-   VANDUO INTEGRATION - CSS VARIABLE MAPPING
+   CSS VARIABLES
    ============================================ */
 
-/* Use Vanduo's CSS variables directly */
 :root {
   /* Chess-specific colors */
   --board-light: #f0d9b5;
@@ -20,47 +14,53 @@
   --board-highlight: var(--yellow-5);
   --board-legal-move: rgba(16, 185, 129, 0.4);
   --board-last-move: rgba(34, 184, 207, 0.4);
-  /* clearer highlight */
 
   /* Piece colors */
   --piece-white: #111827;
   --piece-black: #111827;
 
-  /* Custom chest app variables */
+  /* App accent */
   --color-accent: var(--primary-6);
   --color-accent-soft: var(--primary-1);
 
   /* Transition and effects */
   --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  /* smoother */
   --shadow-soft: var(--shadow-xl);
 
-  /* Glassmorphism Variables */
+  /* Glassmorphism */
   --glass-bg: rgba(255, 255, 255, 0.65);
   --glass-border: rgba(255, 255, 255, 0.4);
   --glass-blur: 24px;
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
+/* Dark theme overrides */
 [data-theme="dark"] {
   --glass-bg: rgba(30, 30, 45, 0.7);
   --glass-border: rgba(255, 255, 255, 0.08);
-  /* subtle border */
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-
   --board-light: #71717a;
-  /* Zinc-500: Lighter than before */
   --board-dark: #3f3f46;
-  /* Zinc-700: Lighter than before */
   --piece-white: #f4f4f5;
-  /* Zinc-100 */
   --piece-black: #18181b;
-  /* Zinc-900 */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --glass-bg: rgba(30, 30, 45, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --board-light: #71717a;
+    --board-dark: #3f3f46;
+    --piece-white: #f4f4f5;
+    --piece-black: #18181b;
+  }
 }
 
 /* ============================================
    GLASSMORPHISM UTILITY
    ============================================ */
+
 .glass-panel {
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur));
@@ -70,82 +70,23 @@
 }
 
 /* ============================================
-   CHESS BOARD STYLES
+   BOARD CONTAINER (theme-specific)
    ============================================ */
 
-/* Board container uses Vanduo's card styling */
 #board-container {
   background: var(--board-dark);
   border-radius: var(--radius-lg);
-  /* larger radius */
   overflow: hidden;
   box-shadow: var(--shadow-2xl);
-  /* deeper shadow */
   border: 4px solid var(--gray-8);
-  /* premium border */
-}
-
-/* Chess squares */
-.chess-square {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color var(--transition-fast);
-}
-
-.chess-square.light {
-  background-color: var(--board-light);
-}
-
-.chess-square.dark {
-  background-color: var(--board-dark);
-}
-
-/* Selected square highlight */
-.chess-square.highlight-selected {
-  background-color: var(--board-highlight) !important;
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
-}
-
-/* Legal move indicators */
-.chess-square.highlight-legal::after {
-  content: '';
-  width: 25%;
-  height: 25%;
-  background-color: var(--board-legal-move);
-  border-radius: 50%;
-  position: absolute;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-}
-
-/* Last move highlight */
-.chess-square.highlight-last-move {
-  background-color: var(--board-last-move) !important;
-}
-
-/* Chess pieces */
-.chess-piece {
-  font-size: 2.8rem;
-  /* slightly larger */
-  user-select: none;
-  cursor: pointer;
-  z-index: 1;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
-  /* pop pieces */
 }
 
 /* ============================================
    APP-SPECIFIC STYLES
    ============================================ */
 
-/* Header uses Vanduo's navbar styling but with custom tweaks */
 .app-header {
-  /* Padding is now minimal as container handles horizontal spacing */
   padding: var(--spacing-13, 13px) 0;
-  /* background handled by glass-panel */
   border-bottom: 1px solid var(--glass-border);
   position: sticky;
   top: 0;
@@ -156,7 +97,6 @@
 .app-title {
   font-size: var(--font-size-xl);
   font-weight: 800;
-  /* extra bold */
   margin: 0;
   display: flex;
   align-items: center;
@@ -164,20 +104,17 @@
   letter-spacing: -0.02em;
 }
 
-/* Main content area */
 .app-main {
   padding: var(--spacing-21, 21px);
 }
 
-/* Side panel card */
 .side-panel {
   height: fit-content;
   overflow: hidden;
-  /* for card curves */
 }
 
-/* Gradient Text Utility */
-.text-gradient {
+/* Gradient text utility */
+.vd-text-gradient {
   background: linear-gradient(135deg, var(--primary-6), var(--primary-4));
   background-clip: text;
   -webkit-background-clip: text;
@@ -185,11 +122,19 @@
   display: inline-block;
 }
 
-/* Status text */
+/* ============================================
+   STATUS AND BUSY STATE
+   ============================================ */
+
 .status-text {
   font-size: var(--font-size-lg);
   font-weight: 500;
   color: var(--text-primary);
+}
+
+.status-text.busy {
+  font-style: italic;
+  opacity: 0.8;
 }
 
 .status-sub {
@@ -198,48 +143,13 @@
   margin-top: var(--spacing-5, 5px);
 }
 
-/* Move history list */
-.move-history-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  max-height: 250px;
-  overflow-y: auto;
-}
-
-.move-history-list li {
-  padding: var(--spacing-5, 5px) var(--spacing-8, 8px);
-  border-bottom: 1px solid var(--border-color);
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
-  transition: background var(--transition-fast);
-}
-
-.move-history-list li:hover {
-  background: var(--bg-secondary);
-}
-
-.move-history-list li:last-child {
-  border-bottom: none;
-}
-
-/* Busy state animation */
 .busy {
   animation: pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes pulse {
-
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 0.7;
-    transform: scale(0.98);
-  }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.98); }
 }
 
 /* ============================================
@@ -250,18 +160,125 @@
   .app-main {
     padding: var(--spacing-13, 13px);
   }
+}
 
-  .chess-piece {
-    font-size: 2rem;
+@media (max-width: 576px) {
+  .app-title {
+    font-size: var(--font-size-lg);
+  }
+}
+
+/* ============================================
+   DISCLAIMER MODAL
+   ============================================ */
+
+.disclaimer-modal-dialog {
+  max-width: 520px;
+  margin: auto;
+}
+
+.disclaimer-modal-content {
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.disclaimer-modal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-8, 8px);
+  padding: var(--spacing-21, 21px) var(--spacing-21, 21px) var(--spacing-13, 13px);
+  background: linear-gradient(135deg, var(--primary-6) 0%, var(--primary-4) 100%);
+  border-bottom: none;
+}
+
+.disclaimer-modal-icon {
+  font-size: 3rem;
+  color: #fff;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.2));
+}
+
+.disclaimer-modal-title {
+  color: #fff !important;
+  font-size: var(--font-size-xl) !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em;
+  text-align: center;
+  margin: 0;
+}
+
+.disclaimer-modal-body {
+  padding: var(--spacing-21, 21px);
+}
+
+.disclaimer-modal-body > p {
+  margin-top: 0;
+  margin-bottom: var(--spacing-13, 13px);
+  color: var(--text-secondary);
+}
+
+.disclaimer-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--spacing-13, 13px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8, 8px);
+}
+
+.disclaimer-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-8, 8px);
+  padding: var(--spacing-8, 8px) var(--spacing-13, 13px);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.disclaimer-list li i {
+  color: var(--primary-6);
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-top: 0.1em;
+}
+
+.disclaimer-footnote {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-bottom: 0;
+}
+
+.disclaimer-modal-footer {
+  justify-content: center;
+  padding: var(--spacing-13, 13px) var(--spacing-21, 21px) var(--spacing-21, 21px);
+  border-top: 1px solid var(--border-color);
+}
+
+.disclaimer-accept-btn {
+  min-width: 200px;
+}
+
+[data-theme="dark"] .disclaimer-list li {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .disclaimer-list li {
+    background: rgba(255, 255, 255, 0.05);
   }
 }
 
 @media (max-width: 576px) {
-  .chess-piece {
-    font-size: 1.5rem;
+  .disclaimer-modal-dialog {
+    margin: var(--spacing-13, 13px);
   }
 
-  .app-title {
-    font-size: var(--font-size-lg);
+  .disclaimer-accept-btn {
+    min-width: unset;
+    width: 100%;
   }
 }

@@ -42,9 +42,16 @@ export class BoardView {
     /** @type {Map<string, HTMLElement>} */
     this.squareEls = new Map();
 
+    /** @type {Map<string, HTMLElement>} */
+    this.fileLabelEls = new Map();
+
+    /** @type {Map<number, HTMLElement>} */
+    this.rankLabelEls = new Map();
+
     this.selectedSquare = null;
     this.legalTargets = new Set();
     this.lastMove = null;
+    this.currentPerspective = "white";
 
     this.handleSquareClick = this.handleSquareClick.bind(this);
 
@@ -57,8 +64,14 @@ export class BoardView {
   initBoard() {
     this.container.innerHTML = "";
     this.squareEls.clear();
+    this.fileLabelEls.clear();
+    this.rankLabelEls.clear();
 
     const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
+
+    // Create board grid wrapper
+    const boardGrid = document.createElement("div");
+    boardGrid.className = "chess-board-grid";
 
     // Render rank 8 down to 1; orientation will be applied logically in render()
     for (let rank = 8; rank >= 1; rank -= 1) {
@@ -78,10 +91,37 @@ export class BoardView {
         pieceEl.classList.add("chess-piece");
         squareEl.appendChild(pieceEl);
 
-        this.container.appendChild(squareEl);
+        boardGrid.appendChild(squareEl);
         this.squareEls.set(square, squareEl);
       }
     }
+
+    // Create file labels row (a-h)
+    const fileLabelsRow = document.createElement("div");
+    fileLabelsRow.className = "chess-file-labels";
+    for (let i = 0; i < 8; i++) {
+      const label = document.createElement("span");
+      label.className = "chess-file-label";
+      label.textContent = files[i];
+      fileLabelsRow.appendChild(label);
+      this.fileLabelEls.set(files[i], label);
+    }
+
+    // Create rank labels column (1-8)
+    const rankLabelsCol = document.createElement("div");
+    rankLabelsCol.className = "chess-rank-labels";
+    for (let rank = 8; rank >= 1; rank--) {
+      const label = document.createElement("span");
+      label.className = "chess-rank-label";
+      label.textContent = String(rank);
+      rankLabelsCol.appendChild(label);
+      this.rankLabelEls.set(rank, label);
+    }
+
+    // Assemble: rank labels + board + file labels
+    this.container.appendChild(rankLabelsCol);
+    this.container.appendChild(boardGrid);
+    this.container.appendChild(fileLabelsRow);
   }
 
   /**
@@ -101,6 +141,7 @@ export class BoardView {
         ? new Set(legalMoves)
         : new Set(legalMoves || []);
     this.lastMove = lastMove || null;
+    this.currentPerspective = perspective || this.currentPerspective;
 
     const ranks = perspective === "white" ? [8,7,6,5,4,3,2,1] : [1,2,3,4,5,6,7,8];
     const files =
@@ -108,9 +149,23 @@ export class BoardView {
         ? ["a","b","c","d","e","f","g","h"]
         : ["h","g","f","e","d","c","b","a"];
 
-    // We reuse existing square elements; only update content and classes.
-    // For orientation, we treat data-square as fixed coordinate and place pieces based on boardState.
-    console.log("BoardView.render lastMove:", lastMove);
+    // Update coordinate labels
+    const fileLabelContainer = this.container.querySelector('.chess-file-labels');
+    if (fileLabelContainer) {
+      const labels = fileLabelContainer.querySelectorAll('.chess-file-label');
+      for (let i = 0; i < files.length && i < labels.length; i++) {
+        labels[i].textContent = files[i];
+      }
+    }
+    const rankLabelContainer = this.container.querySelector('.chess-rank-labels');
+    if (rankLabelContainer) {
+      const labels = rankLabelContainer.querySelectorAll('.chess-rank-label');
+      for (let i = 0; i < ranks.length && i < labels.length; i++) {
+        labels[i].textContent = String(ranks[i]);
+      }
+    }
+
+    // Update piece content and highlighting
     this.squareEls.forEach((squareEl, square) => {
       const pieceEl = squareEl.querySelector(".chess-piece");
       const code = boardState[square] || null;
@@ -134,7 +189,6 @@ export class BoardView {
         lastMove &&
         (lastMove.from === square || lastMove.to === square)
       ) {
-        console.log("Adding highlight-last-move to square:", square);
         squareEl.classList.add("highlight-last-move");
       }
     });

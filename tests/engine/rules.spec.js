@@ -10,6 +10,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Engine Logic - Rules', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('/');
+        await page.evaluate(() => {
+            localStorage.setItem('kpc-disclaimer-accepted', 'true');
+        });
+        await page.reload();
         // Start game to ensure modules are loaded
         await page.click('#new-game-btn');
         await page.waitForSelector('.chess-piece:has-text("♙")');

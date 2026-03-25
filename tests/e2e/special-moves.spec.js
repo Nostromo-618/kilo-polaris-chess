@@ -9,6 +9,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Special Moves', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('/');
+        await page.evaluate(() => {
+            localStorage.setItem('kpc-disclaimer-accepted', 'true');
+        });
+        await page.reload();
         await page.locator('#difficulty-select').selectOption('1');
         await page.locator('#thinking-time').fill('1');
     });

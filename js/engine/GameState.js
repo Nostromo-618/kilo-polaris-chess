@@ -71,9 +71,10 @@ export class GameState {
     state.halfmoveClock = 0;
     state.fullmoveNumber = 1;
     state.moveHistory = [];
-    state.result = null; // { outcome: "ongoing"|"checkmate"|"stalemate"|"draw", reason?, winner? }
+    state.result = null;
     state.lastMove = null;
     state.repetitionMap = new Map();
+    state.undoStack = [];
     state.recordRepetitionKey();
     state.updateStatusText();
     return state;
@@ -81,7 +82,6 @@ export class GameState {
 
   constructor(data = null) {
     if (data) {
-      // Rehydrate from serialized data
       this.board = data.board ? (Array.isArray(data.board) ? data.board : Object.values(data.board)) : new Array(64).fill(null);
       this.activeColor = data.activeColor || "white";
       this.playerColor = data.playerColor || "white";
@@ -96,23 +96,19 @@ export class GameState {
       this.result = data.result || null;
       this.lastMove = data.lastMove || null;
 
-      // Rehydrate repetition map
       this.repetitionMap = new Map();
       if (data.repetitionMap) {
         if (Array.isArray(data.repetitionMap)) {
-          // [key, value] pairs
           data.repetitionMap.forEach(([k, v]) => this.repetitionMap.set(k, v));
         } else {
-          // Object
           Object.entries(data.repetitionMap).forEach(([k, v]) => this.repetitionMap.set(k, v));
         }
       }
 
       this.selectedSquare = null;
       this.cachedLegalTargets = [];
+      this.undoStack = [];
     } else {
-      // Initialize new state
-      /** @type {string[]} */
       this.board = new Array(64).fill(null);
       this.activeColor = "white";
       this.playerColor = "white";
@@ -126,11 +122,10 @@ export class GameState {
       this.moveHistory = [];
       this.result = null;
       this.lastMove = null;
-      /** @type {Map<string,number>} */
       this.repetitionMap = new Map();
       this.selectedSquare = null;
-      /** @type {string[]} */
       this.cachedLegalTargets = [];
+      this.undoStack = [];
     }
   }
 
@@ -285,6 +280,20 @@ export class GameState {
   applyMove(move) {
     if (this.isGameOver()) return;
 
+    // Save state for undo before applying
+    this.undoStack.push({
+      board: cloneBoard(this.board),
+      activeColor: this.activeColor,
+      castlingRights: JSON.parse(JSON.stringify(this.castlingRights)),
+      enPassantTarget: this.enPassantTarget,
+      halfmoveClock: this.halfmoveClock,
+      fullmoveNumber: this.fullmoveNumber,
+      result: this.result ? { ...this.result } : null,
+      lastMove: this.lastMove ? { ...this.lastMove } : null,
+      lastMoveText: this.lastMoveText || null,
+      repetitionMap: new Map(this.repetitionMap),
+    });
+
     const fromIndex = algebraicToIndex(move.from);
     const toIndex = algebraicToIndex(move.to);
     const movingPiece = this.board[fromIndex];
@@ -373,6 +382,51 @@ export class GameState {
     // Determine game result
     this.updateResult();
     this.updateStatusText();
+  }
+
+  /**
+   * Whether an undo is possible (at least one move has been made).
+   * @returns {boolean}
+   */
+  canUndo() {
+    return this.undoStack && this.undoStack.length >= 2;
+  }
+
+  /**
+   * Undo the last two moves (player + computer).
+   * Returns true if undo was successful.
+   * @returns {boolean}
+   */
+  undoLastMove() {
+    if (!this.canUndo()) return false;
+
+    // Pop two states: one for the computer's move, one for the player's move
+    this.undoStack.pop(); // current state
+    const prevState = this.undoStack.pop();
+
+    if (!prevState) return false;
+
+    this.board = prevState.board;
+    this.activeColor = prevState.activeColor;
+    this.castlingRights = prevState.castlingRights;
+    this.enPassantTarget = prevState.enPassantTarget;
+    this.halfmoveClock = prevState.halfmoveClock;
+    this.fullmoveNumber = prevState.fullmoveNumber;
+    this.result = prevState.result;
+    this.lastMove = prevState.lastMove;
+    this.lastMoveText = prevState.lastMoveText;
+    this.repetitionMap = prevState.repetitionMap;
+
+    // Remove last two SAN entries from history
+    if (this.moveHistory.length >= 2) {
+      this.moveHistory.pop();
+      this.moveHistory.pop();
+    }
+
+    this.selectedSquare = null;
+    this.cachedLegalTargets = [];
+    this.updateStatusText();
+    return true;
   }
 
   /**
@@ -620,7 +674,7 @@ export class GameState {
 
   /**
    * Simplified SAN-like notation for history display.
-   * This is intentionally minimal, not full algebraic spec.
+   * Uses lightweight board copy instead of full state clone for check detection.
    */
   toSimpleSAN(move, movingPiece, isCapture) {
     const pieceType = movingPiece[1];
@@ -636,7 +690,7 @@ export class GameState {
       if (pieceType !== "P") {
         san += pieceType;
       } else if (isCapture) {
-        san += from[0]; // pawn capture file
+        san += from[0];
       }
       if (isCapture) san += "x";
       san += to;
@@ -646,12 +700,8 @@ export class GameState {
       }
     }
 
-    // Append check or mate markers
-    const tmp = this.clone();
-    tmp.applyMoveInternalForSAN(move);
-    const rulesState = tmp.asRulesState();
-    const { hasLegalMoves, isCheck } = analyzePosition(rulesState);
-
+    // Lightweight check detection using board copy only
+    const { isCheck, hasLegalMoves } = this.detectCheckAfterMove(move);
     if (isCheck && !hasLegalMoves) {
       san += "#";
     } else if (isCheck) {
@@ -662,68 +712,50 @@ export class GameState {
   }
 
   /**
-   * Internal clone for SAN evaluation.
+   * Detect if a move gives check, using only a board copy.
+   * Avoids cloning the full GameState.
    */
-  clone() {
-    const g = new GameState();
-    g.board = cloneBoard(this.board);
-    g.activeColor = this.activeColor;
-    g.playerColor = this.playerColor;
-    g.castlingRights = JSON.parse(JSON.stringify(this.castlingRights));
-    g.enPassantTarget = this.enPassantTarget;
-    g.halfmoveClock = this.halfmoveClock;
-    g.fullmoveNumber = this.fullmoveNumber;
-    g.moveHistory = this.moveHistory.slice();
-    g.result = this.result ? { ...this.result } : null;
-    g.lastMove = this.lastMove ? { ...this.lastMove } : null;
-    g.lastMoveText = this.lastMoveText || null;
-    g.repetitionMap = new Map(this.repetitionMap);
-    return g;
-  }
-
-  /**
-   * Lightweight application of move for SAN computation, no history or repetition.
-   * Mirrors applyMove but omits status bookkeeping.
-   * @param {Move} move
-   */
-  applyMoveInternalForSAN(move) {
+  detectCheckAfterMove(move) {
+    const board = cloneBoard(this.board);
     const fromIndex = algebraicToIndex(move.from);
     const toIndex = algebraicToIndex(move.to);
-    const movingPiece = this.board[fromIndex];
+    const movingPiece = board[fromIndex];
     const color = getColorOf(movingPiece);
+    const enemy = oppositeColor(color);
 
-    this.board[fromIndex] = null;
+    board[fromIndex] = null;
 
     if (move.isEnPassant) {
       const dir = color === "white" ? -1 : 1;
       const { file, rank } = this.indexFR(toIndex);
-      const capIndex = (rank + dir) * 8 + file;
-      this.board[capIndex] = null;
+      board[(rank + dir) * 8 + file] = null;
     }
 
     if (move.isCastleKingSide || move.isCastleQueenSide) {
       const rank = color === "white" ? 0 : 7;
       if (move.isCastleKingSide) {
-        const rookFrom = rank * 8 + 7;
-        const rookTo = rank * 8 + 5;
-        this.board[rookTo] = this.board[rookFrom];
-        this.board[rookFrom] = null;
+        board[rank * 8 + 5] = board[rank * 8 + 7];
+        board[rank * 8 + 7] = null;
       } else {
-        const rookFrom = rank * 8 + 0;
-        const rookTo = rank * 8 + 3;
-        this.board[rookTo] = this.board[rookFrom];
-        this.board[rookFrom] = null;
+        board[rank * 8 + 3] = board[rank * 8 + 0];
+        board[rank * 8 + 0] = null;
       }
     }
 
     if (move.promotion) {
-      const prefix = color === "white" ? "w" : "b";
-      this.board[toIndex] = `${prefix}${move.promotion}`;
+      board[toIndex] = `${color === "white" ? "w" : "b"}${move.promotion}`;
     } else {
-      this.board[toIndex] = movingPiece;
+      board[toIndex] = movingPiece;
     }
 
-    this.activeColor = oppositeColor(color);
+    const tempState = {
+      board,
+      activeColor: enemy,
+      castlingRights: this.castlingRights,
+      enPassantTarget: this.enPassantTarget,
+    };
+
+    const { hasLegalMoves, isCheck } = analyzePosition(tempState);
+    return { isCheck, hasLegalMoves };
   }
 }
-

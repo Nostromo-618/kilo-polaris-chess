@@ -9,6 +9,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Piece Movement', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('/');
+        await page.evaluate(() => {
+            localStorage.setItem('kpc-disclaimer-accepted', 'true');
+        });
+        await page.reload();
         // Start a new game as white
         await page.click('#new-game-btn');
         // Wait for game to initialize

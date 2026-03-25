@@ -9,6 +9,10 @@ import { test, expect } from '@playwright/test';
 test.describe('UI Controls', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('/');
+        await page.evaluate(() => {
+            localStorage.setItem('kpc-disclaimer-accepted', 'true');
+        });
+        await page.reload();
     });
 
     test.describe('Theme Switching', () => {

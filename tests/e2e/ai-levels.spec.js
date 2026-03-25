@@ -34,6 +34,10 @@ test.describe('AI Levels - Smoke Tests', () => {
     for (const level of [1, 2, 3, 4, 5]) {
         test(`Level ${level} should complete AI move`, async ({ page }) => {
             await page.goto('/');
+            await page.evaluate(() => {
+                localStorage.setItem('kpc-disclaimer-accepted', 'true');
+            });
+            await page.reload();
 
             // Set difficulty level
             await page.locator('#difficulty-select').selectOption(String(level));
@@ -68,6 +72,10 @@ test.describe('AI Levels - Full Game Tests', () => {
             test.slow(); // Mark as slow test
 
             await page.goto('/');
+            await page.evaluate(() => {
+                localStorage.setItem('kpc-disclaimer-accepted', 'true');
+            });
+            await page.reload();
 
             // Set difficulty level
             await page.locator('#difficulty-select').selectOption(String(level));
