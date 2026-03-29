@@ -140,9 +140,10 @@
 
 .move-history-list {
   list-style: decimal;
+  /* Outside markers sit in the margin and get clipped by .side-panel { overflow: hidden } */
+  list-style-position: inside;
   padding: 0;
   margin: 2px 0 0;
-  padding-left: 20px;
   font-size: var(--font-size-sm, 0.875rem);
   max-height: 250px;
   overflow-y: auto;
@@ -309,6 +310,41 @@
 
 .side-panel .card + .card {
   margin-top: var(--spacing-5, 8px);
+}
+
+/* ============================================
+   SETTINGS BUTTON GROUPS
+   ============================================ */
+
+.controls-section .vd-btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.controls-section .vd-btn-group .vd-btn {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* Selected segment: filled primary (JS toggles vd-is-active; Vanduo uses .is-active for z-index only) */
+.controls-section .vd-btn-group > .vd-btn.vd-is-active {
+  z-index: 1;
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+.controls-section .vd-btn-group > .vd-btn.vd-is-active:hover:not(:disabled):not(.disabled):not(.is-disabled) {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: var(--color-white);
+}
+
+.controls-section .vd-btn-group > .vd-btn.vd-is-active:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* ============================================

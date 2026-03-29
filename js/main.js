@@ -30,8 +30,8 @@ import {
 const dom = {
   boardContainer: document.getElementById("board-container"),
   colorChoice: document.getElementById("color-choice"),
-  difficultySelect: document.getElementById("difficulty-select"),
-  thinkingTimeInput: document.getElementById("thinking-time"),
+  difficultyChoice: document.getElementById("difficulty-choice"),
+  thinkingChoice: document.getElementById("thinking-choice"),
   newGameBtn: document.getElementById("new-game-btn"),
   undoBtn: document.getElementById("undo-btn"),
   statusText: document.getElementById("status-text"),
@@ -50,9 +50,9 @@ const boardView = new BoardView(dom.boardContainer, {
 // Initialize controls
 const controlsView = new Controls({
   colorChoiceContainer: dom.colorChoice,
-  difficultySelect: dom.difficultySelect,
+  difficultyChoiceContainer: dom.difficultyChoice,
+  thinkingChoiceContainer: dom.thinkingChoice,
   newGameButton: dom.newGameBtn,
-  thinkingTimeInput: dom.thinkingTimeInput,
   undoButton: dom.undoBtn,
   onNewGameRequested: handleNewGameRequested,
   onUndoRequested: handleUndoRequested,

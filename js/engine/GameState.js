@@ -10,7 +10,7 @@
  *   - enPassantTarget
  *   - halfmoveClock, fullmoveNumber
  *   - playerColor (human side)
- *   - moveHistory (SAN-like)
+ *   - moveHistory (long algebraic strings, e.g. e2-e4; legacy saves may contain SAN)
  *   - repetitionMap for threefold repetition
  * - Apply moves (including:
  *   - promotions
@@ -48,7 +48,7 @@ import { generateLegalMoves, isInCheck, analyzePosition } from "./Rules.js";
  * @property {string} turnText
  * @property {string|null} lastMoveText
  * @property {{from:string,to:string}|null} lastMove
- * @property {string[]} history
+ * @property {string[]} history - long algebraic per move (e.g. e2-e4); legacy entries may be SAN
  * @property {{outcome:string,winner?:string|null,reason?:string}|null} result
  */
 
@@ -370,11 +370,11 @@ export class GameState {
       this.fullmoveNumber += 1;
     }
 
-    // Record lastMove and history entry
+    // Record lastMove and history entry (long algebraic: from-to)
     this.lastMove = { from: move.from, to: move.to };
-    const san = this.toSimpleSAN(move, movingPiece, isCapture);
-    this.moveHistory.push(san);
-    this.lastMoveText = `${this.fullmoveNumber}. ${san}`;
+    const longAlg = this.formatLongAlgebraic(move);
+    this.moveHistory.push(longAlg);
+    this.lastMoveText = `${this.fullmoveNumber}. ${longAlg}`;
 
     // Repetition tracking
     this.recordRepetitionKey();
@@ -417,7 +417,7 @@ export class GameState {
     this.lastMoveText = prevState.lastMoveText;
     this.repetitionMap = prevState.repetitionMap;
 
-    // Remove last two SAN entries from history
+    // Remove last two history entries
     if (this.moveHistory.length >= 2) {
       this.moveHistory.pop();
       this.moveHistory.pop();
@@ -670,6 +670,19 @@ export class GameState {
       castlingRights: this.castlingRights,
       enPassantTarget: this.enPassantTarget,
     };
+  }
+
+  /**
+   * Long algebraic notation: from-to squares, optional =PROMOTION (e.g. e7-e8=Q).
+   * @param {Move} move
+   * @returns {string}
+   */
+  formatLongAlgebraic(move) {
+    let s = `${move.from}-${move.to}`;
+    if (move.promotion) {
+      s += `=${move.promotion}`;
+    }
+    return s;
   }
 
   /**

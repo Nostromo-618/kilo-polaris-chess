@@ -111,7 +111,7 @@ test.describe('Full Game Flow', () => {
         // Make first move
         await makeMove(page, 'e2', 'e4');
         const moveHistory = page.locator('#move-history');
-        await expect(moveHistory).toContainText('e4');
+        await expect(moveHistory).toContainText('e2-e4');
 
         // Wait for AI move
         await waitForAIMove(page);
@@ -124,6 +124,6 @@ test.describe('Full Game Flow', () => {
         await makeMove(page, 'd2', 'd4');
 
         // Verify move was added
-        await expect(moveHistory).toContainText('d4');
+        await expect(moveHistory).toContainText('d2-d4');
     });
 });

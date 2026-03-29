@@ -121,7 +121,7 @@ test.describe('UI Controls', () => {
         });
     });
 
-    test.describe('Thinking Time', () => {
+    test.describe('Maximum Thinking Time', () => {
         test('should have thinking time input', async ({ page }) => {
             const thinkingTime = page.locator('#thinking-time');
             await expect(thinkingTime).toBeVisible();

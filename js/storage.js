@@ -145,7 +145,7 @@ export function clearGame() {
   remove(KEYS.GAME);
 }
 
-// ── Thinking Time ─────────────────────────────────────────────────────────────
+// ── Maximum thinking time ─────────────────────────────────────────────────────
 
 /**
  * @returns {number|null} seconds (1-60), or null if not set

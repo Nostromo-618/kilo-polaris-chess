@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@vanduo-oss/framework':
-        specifier: ^1.2.5
-        version: 1.2.5
+        specifier: ^1.3.1
+        version: 1.3.1
     devDependencies:
       '@playwright/test':
-        specifier: ^1.57.0
+        specifier: ^1.58.2
         version: 1.58.2
 
 packages:
@@ -23,8 +23,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  '@vanduo-oss/framework@1.2.5':
-    resolution: {integrity: sha512-ia6xif81UBfi1DATMfB7yyAoOKYomzCqCGGhYDQdGv9vkzMbgfQVcdwuv/7inP093sSYFE3fjKHxtUU09E//eA==}
+  '@vanduo-oss/framework@1.3.1':
+    resolution: {integrity: sha512-cBDX7UDhA2gGvRshTufubfKN2Q9AArPreRQ4NALqeq6PtLsJhodqlGttJHcq1tn4+Wky5Gr+Gr/eOCj0U8mUiA==}
     engines: {node: '>=18.0.0', pnpm: '>=8.0.0'}
 
   fsevents@2.3.2:
@@ -48,7 +48,7 @@ snapshots:
     dependencies:
       playwright: 1.58.2
 
-  '@vanduo-oss/framework@1.2.5': {}
+  '@vanduo-oss/framework@1.3.1': {}
 
   fsevents@2.3.2:
     optional: true

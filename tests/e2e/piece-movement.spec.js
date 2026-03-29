@@ -95,7 +95,7 @@ test.describe('Piece Movement', () => {
 
         // Check move history
         const moveHistory = page.locator('#move-history');
-        await expect(moveHistory).toContainText('e4');
+        await expect(moveHistory).toContainText('e2-e4');
     });
 
     test('should show knight legal moves correctly', async ({ page }) => {
