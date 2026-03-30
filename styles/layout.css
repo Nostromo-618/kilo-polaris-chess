@@ -61,24 +61,15 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
-@media (max-width: 991px) {
-  .chess-square {
-    font-size: clamp(1.4rem, 2.8vw, 2rem);
-  }
-}
-
-@media (max-width: 575px) {
-  .chess-square {
-    font-size: clamp(1.1rem, 3vw, 1.5rem);
-  }
-}
+/* Mobile piece sizing: see @media blocks below (991px / 575px) */
 
 /* ============================================
    BOARD CONTAINER LAYOUT
    ============================================ */
 
 #board-container {
-  width: min(100%, 560px);
+  width: 100%;
+  max-width: min(100%, var(--board-max-width, 680px));
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: 1fr auto;
@@ -347,6 +338,22 @@
   outline-offset: 2px;
 }
 
+/* Board size slider: desktop only (mobile uses full vw width) */
+.board-size-control-desktop {
+  display: none;
+}
+
+@media (min-width: 992px) {
+  .board-size-control-desktop {
+    display: block;
+  }
+
+  #board-size-range {
+    width: 100%;
+    margin-top: var(--spacing-5, 5px);
+  }
+}
+
 /* ============================================
    RESPONSIVE BREAKPOINTS
    ============================================ */
@@ -356,15 +363,25 @@
     flex-direction: column;
   }
 
-  .side-panel {
-    order: 2;
+  /* Only direct children of .vd-row participate in flex order (not .side-panel inside aside) */
+  .app-main .vd-row {
+    flex-direction: column;
   }
 
-  .board-section {
+  .app-main .vd-row > .board-section {
     order: 1;
   }
 
+  .app-main .vd-row > aside {
+    order: 2;
+  }
+
+  .chess-square {
+    font-size: clamp(1.85rem, 5.5vw, 2.6rem);
+  }
+
   #board-container {
+    max-width: none;
     width: min(100%, 86vw);
   }
 
@@ -389,7 +406,16 @@
     padding: 10px;
   }
 
+  .chess-square {
+    font-size: clamp(2.1rem, 12vw, 3rem);
+  }
+
+  .chess-piece {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  }
+
   #board-container {
+    max-width: none;
     width: min(100%, 94vw);
   }
 

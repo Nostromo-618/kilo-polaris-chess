@@ -28,8 +28,9 @@
     <header class="app-header glass-panel">
       <div class="vd-container-lg vd-d-flex items-center justify-between">
         <h1 class="app-title">
-          <i class="ph-duotone ph-chess-piece" style="color: var(--color-primary);"></i>
-          Kilo Polaris Chess
+          <i class="ph-duotone ph-chess-piece app-title-icon" aria-hidden="true"></i>
+          <span class="app-title-text">Kilo Polaris Chess</span>
+          <span class="app-version" aria-label="Version 2.0.0">v2.0.0</span>
         </h1>
         <div class="vd-d-flex items-center vd-gap-4">
           <button id="theme-toggle-btn" class="vd-theme-customizer-trigger" aria-label="Toggle theme">
@@ -84,6 +85,13 @@
                 </div>
               </div>
 
+              <div class="vd-form-group board-size-control-desktop">
+                <label class="vd-form-label" for="board-size-range">
+                  Board size: <span id="board-size-value">704</span> px
+                </label>
+                <input type="range" id="board-size-range" class="range" min="0" max="100" value="80" aria-valuemin="0" aria-valuemax="100" aria-label="Board size" />
+              </div>
+
               <div class="vd-form-group vd-mt-5">
                 <button id="new-game-btn" class="vd-btn vd-btn-primary vd-btn-block vd-shadow-lg">
                   <i class="ph-duotone ph-play vd-mr-2"></i> New Game
@@ -110,6 +118,10 @@
               <h2 class="vd-text-gradient">Move History</h2>
               <ol id="move-history" class="move-history-list"></ol>
             </section>
+
+            <p class="side-panel-attribution">
+              <a href="https://github.com/vanduo-oss/framework" target="_blank" rel="noopener noreferrer">Powered by Vanduo Framework</a>
+            </p>
           </div>
         </aside>
       </div>
@@ -122,6 +134,32 @@
   <!-- Game End Modal Container -->
   <div id="game-end-modal-container"></div>
 
+  <!-- App defaults for Vanduo Theme Customizer (only when no saved prefs yet) -->
+  <script>
+    (function () {
+      var keys = [
+        'vanduo-primary-color',
+        'vanduo-neutral-color',
+        'vanduo-radius',
+        'vanduo-font-preference'
+      ];
+      function allMissing() {
+        try {
+          return keys.every(function (k) { return localStorage.getItem(k) === null; });
+        } catch {
+          return false;
+        }
+      }
+      if (allMissing()) {
+        try {
+          localStorage.setItem('vanduo-primary-color', 'amber');
+          localStorage.setItem('vanduo-neutral-color', 'stone');
+          localStorage.setItem('vanduo-radius', '0.375');
+          localStorage.setItem('vanduo-font-preference', 'ubuntu');
+        } catch { /* private mode / quota */ }
+      }
+    })();
+  </script>
   <!-- Initialize Vanduo Framework (required in v1.1.0+) -->
   <script>Vanduo.init();</script>
   <script type="module" src="js/main.js"></script>

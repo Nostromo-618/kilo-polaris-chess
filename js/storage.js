@@ -9,6 +9,7 @@
  *   kpc-theme                "system" | "light" | "dark"
  *   kpc-difficulty           "1" … "5"
  *   kpc-game                 JSON string of GameState.serialize()
+ *   kpc-board-size           "0" … "100" desktop board width slider
  */
 
 const KEYS = {
@@ -17,6 +18,7 @@ const KEYS = {
   DIFFICULTY: 'kpc-difficulty',
   THINKING_TIME: 'kpc-thinking-time',
   GAME: 'kpc-game',
+  BOARD_SIZE: 'kpc-board-size',
 };
 
 /**
@@ -164,4 +166,25 @@ export function getThinkingTime() {
 export function setThinkingTime(seconds) {
   const clamped = Math.max(1, Math.min(60, Number(seconds) || 10));
   write(KEYS.THINKING_TIME, String(clamped));
+}
+
+// ── Desktop board size (range 0–100) ─────────────────────────────────────────
+
+/**
+ * @returns {number|null} 0–100, or null if not set
+ */
+export function getBoardSize() {
+  const raw = read(KEYS.BOARD_SIZE);
+  if (raw === null) return null;
+  const n = Number(raw);
+  if (Number.isNaN(n) || n < 0 || n > 100) return null;
+  return Math.round(n);
+}
+
+/**
+ * @param {number} value 0–100
+ */
+export function setBoardSize(value) {
+  const clamped = Math.max(0, Math.min(100, Number(value) || 0));
+  write(KEYS.BOARD_SIZE, String(clamped));
 }

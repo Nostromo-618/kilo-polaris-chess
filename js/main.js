@@ -14,6 +14,8 @@ import {
   getGame,
   setGame,
   clearGame,
+  getBoardSize,
+  setBoardSize,
 } from "./storage.js";
 
 /**
@@ -25,7 +27,32 @@ import {
  *   - Difficulty setting         via storage.{get,set}Difficulty
  *   - Thinking time              via storage.{get,set}ThinkingTime
  *   - In-progress game           via storage.{get,set,clear}Game
+ *   - Desktop board size         via storage.{get,set}BoardSize
  */
+
+const BOARD_SIZE_MIN_PX = 320;
+const BOARD_SIZE_MAX_PX = 800;
+const BOARD_SIZE_SLIDER_DEFAULT = 80;
+
+/**
+ * @param {number} slider 0–100
+ * @returns {number} max-width in px
+ */
+function boardSliderToMaxWidthPx(slider) {
+  const s = Math.max(0, Math.min(100, Number(slider)));
+  return (
+    BOARD_SIZE_MIN_PX +
+    ((BOARD_SIZE_MAX_PX - BOARD_SIZE_MIN_PX) * s) / 100
+  );
+}
+
+/**
+ * @param {number} slider 0–100
+ */
+function applyBoardMaxWidthCss(slider) {
+  const px = Math.round(boardSliderToMaxWidthPx(slider));
+  document.documentElement.style.setProperty("--board-max-width", `${px}px`);
+}
 
 const dom = {
   boardContainer: document.getElementById("board-container"),
@@ -40,6 +67,8 @@ const dom = {
   moveHistory: document.getElementById("move-history"),
   gameEndModalContainer: document.getElementById("game-end-modal-container"),
   disclaimerModalContainer: document.getElementById("disclaimer-modal-container"),
+  boardSizeRange: document.getElementById("board-size-range"),
+  boardSizeValue: document.getElementById("board-size-value"),
 };
 
 // Initialize board view
@@ -404,7 +433,33 @@ function restorePreferences() {
   }
 }
 
+function initBoardSizeControl() {
+  const saved = getBoardSize();
+  const slider = saved !== null ? saved : BOARD_SIZE_SLIDER_DEFAULT;
+  if (saved === null) {
+    setBoardSize(slider);
+  }
+
+  applyBoardMaxWidthCss(slider);
+
+  if (!dom.boardSizeRange || !dom.boardSizeValue) return;
+
+  dom.boardSizeRange.value = String(slider);
+  dom.boardSizeValue.textContent = String(Math.round(boardSliderToMaxWidthPx(slider)));
+
+  const onInput = () => {
+    const v = Number(dom.boardSizeRange.value);
+    applyBoardMaxWidthCss(v);
+    setBoardSize(v);
+    dom.boardSizeValue.textContent = String(Math.round(boardSliderToMaxWidthPx(v)));
+  };
+
+  dom.boardSizeRange.addEventListener("input", onInput);
+  dom.boardSizeRange.addEventListener("change", onInput);
+}
+
 async function main() {
+  initBoardSizeControl();
   setupThemeToggleButton();
   await setupDisclaimerModal();
   restorePreferences();
